@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <PackageId>Emerald.AspNetCore</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Authors>Dmitry Sidorov</Authors>
+    <Title>Emerald.AspNetCore</Title>
+    <Description>Emerald framework with AspNetCore support.</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Copyright>Copyright 2018 (c). All rights reserved.</Copyright>
+    <PackageTags>emerald</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Emerald" Version="1.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.5" />
+    <PackageReference Include="Serilog.AspNetCore" Version="2.1.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="1.1.0" />
+  </ItemGroup>
+</Project>

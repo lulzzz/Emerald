@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
+    <PackageId>Emerald</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Authors>Dmitry Sidorov</Authors>
+    <Title>Emerald</Title>
+    <Description>Emerald framework.</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <Copyright>Copyright 2018 (c). All rights reserved.</Copyright>
+    <PackageTags>emerald</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Akka" Version="1.3.3" />
+    <PackageReference Include="Akka.Logger.Serilog" Version="1.3.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.0" />
+    <PackageReference Include="ncrontab" Version="3.3.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.4.2" />
+  </ItemGroup>
+</Project>
