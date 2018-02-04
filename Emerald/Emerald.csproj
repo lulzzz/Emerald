@@ -17,5 +17,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.0.0" />
     <PackageReference Include="ncrontab" Version="3.3.0" />
     <PackageReference Include="System.Data.SqlClient" Version="4.4.2" />
+    <PackageReference Include="System.Net.Http" Version="4.3.3" />
   </ItemGroup>
 </Project>
