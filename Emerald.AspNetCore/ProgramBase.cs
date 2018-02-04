@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using System;
@@ -49,6 +50,8 @@ namespace Emerald.AspNetCore
             using (var dbContext = scope.ServiceProvider.GetService<TDbContext>())
             using (var transaction = dbContext.Database.BeginTransaction())
             {
+                var logger = scope.ServiceProvider.GetService<ILogger<ProgramBase<TStartup, TDbContext, TDbInitializer>>>();
+
                 var dbInitializer = Activator.CreateInstance<TDbInitializer>();
 
                 dbInitializer.Initialize();
@@ -59,9 +62,10 @@ namespace Emerald.AspNetCore
                     dbInitializer.Seed(dbContext);
                     transaction.Commit();
                 }
-                catch
+                catch (Exception ex)
                 {
                     transaction.Rollback();
+                    logger.LogError("Error on initializing database.", ex);
                 }
             }
         }
