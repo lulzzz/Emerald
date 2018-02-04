@@ -3,17 +3,22 @@ using System.Linq;
 
 namespace Emerald.AspNetCore.Persistence
 {
-    public abstract class Query<TEntity, TDbContext> where TEntity : class where TDbContext : DbContext
+    public abstract class Query<TDbContext> where TDbContext : DbContext
     {
-        private readonly TDbContext _dbContext;
-
         protected Query(TDbContext dbContext)
         {
-            _dbContext = dbContext;
+            DbContext = dbContext;
         }
 
-        protected TDbContext DbContext => _dbContext;
+        protected TDbContext DbContext { get; }
+    }
 
-        public IQueryable<TEntity> Source => _dbContext.Set<TEntity>();
+    public abstract class Query<TEntity, TDbContext> : Query<TDbContext> where TDbContext : DbContext where TEntity : class
+    {
+        protected Query(TDbContext dbContext) : base(dbContext)
+        {
+        }
+
+        public IQueryable<TEntity> Source => DbContext.Set<TEntity>();
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Emerald.AspNetCore.Application;
+using Emerald.AspNetCore.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using System;
 
@@ -16,18 +17,10 @@ namespace Emerald.AspNetCore.Extensions
                 default: throw new NotSupportedException();
             }
         }
-
         public static IActionResult OperationResult<T>(this Controller controller, OperationResult<T> operationResult)
         {
-            switch (operationResult.Type)
-            {
-                case OperationResultType.Success: return new OkObjectResult(operationResult.Output);
-                case OperationResultType.NotFound: return new NotFoundResult();
-                case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
-                default: throw new NotSupportedException();
-            }
+            return OperationResult(controller, operationResult, r => r);
         }
-
         public static IActionResult OperationResult<TResult, TViewModel>(this Controller controller, OperationResult<TResult> operationResult, Func<TResult, TViewModel> viewModelFactory)
         {
             switch (operationResult.Type)
@@ -39,14 +32,19 @@ namespace Emerald.AspNetCore.Extensions
             }
         }
 
-        public static IActionResult QueryResult(this Controller controller, object result)
+        public static IActionResult QueryResult<TResult>(this Controller controller, QueryResult<TResult> queryResult)
         {
-            return result == null ? (IActionResult)new NotFoundResult() : new OkObjectResult(result);
+            return QueryResult(controller, queryResult, r => r);
         }
-
-        public static IActionResult QueryResult<TResult, TViewModel>(this Controller controller, TResult result, Func<TResult, TViewModel> viewModelFactory)
+        public static IActionResult QueryResult<TResult, TViewModel>(this Controller controller, QueryResult<TResult> queryResult, Func<TResult, TViewModel> viewModelFactory)
         {
-            return result == null ? (IActionResult)new NotFoundResult() : new OkObjectResult(viewModelFactory(result));
+            switch (queryResult.Type)
+            {
+                case QueryResultType.Success: return new OkObjectResult(viewModelFactory(queryResult.Output));
+                case QueryResultType.NotFound: return new NotFoundResult();
+                case QueryResultType.Error: return new BadRequestObjectResult(queryResult.ErrorMessage);
+                default: throw new NotSupportedException();
+            }
         }
     }
 }
