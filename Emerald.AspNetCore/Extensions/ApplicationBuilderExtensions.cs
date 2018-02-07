@@ -1,5 +1,4 @@
 ﻿using Emerald.AspNetCore.Common;
-using Emerald.AspNetCore.Routing;
 using Emerald.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -20,12 +19,6 @@ namespace Emerald.AspNetCore.Extensions
             applicationLifetime.ApplicationStopped.Register(() => emeraldSystem.Terminate().Wait());
 
             return app;
-        }
-
-        public static void UseRouter(this IApplicationBuilder app)
-        {
-            var httpRouter = new HttpRouter(null);
-            app.Run(ctx => httpRouter.Route(ctx));
         }
     }
 }
