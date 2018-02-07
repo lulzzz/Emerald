@@ -23,7 +23,7 @@ namespace Emerald.AspNetCore
             ConfiguringLogging(builder, environment);
             ConfiguringUrls(builder, environment);
             var host = builder.Build();
-            ConfiguringDatabase(host);
+            ConfiguringDatabase(host, environment);
             host.Run();
         }
         private static void ConfiguringLogging(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
@@ -44,28 +44,47 @@ namespace Emerald.AspNetCore
                 builder.UseUrls(environment.Host);
             }
         }
-        private static void ConfiguringDatabase(IWebHost host)
+        private static void ConfiguringDatabase(IWebHost host, EnvironmentConfigurationSection environment)
         {
-            using (var scope = host.Services.CreateScope())
-            using (var dbContext = scope.ServiceProvider.GetService<TDbContext>())
-            using (var transaction = dbContext.Database.BeginTransaction())
+            if (environment.ApplicationDb.MigrateDatabaseToLatestVersion)
             {
-                var logger = scope.ServiceProvider.GetService<ILogger<ProgramBase<TStartup, TDbContext, TDbInitializer>>>();
-
-                var dbInitializer = Activator.CreateInstance<TDbInitializer>();
-
-                dbInitializer.Initialize();
-
-                try
+                using (var scope = host.Services.CreateScope())
+                using (var dbContext = scope.ServiceProvider.GetService<TDbContext>())
                 {
-                    dbContext.Database.Migrate();
-                    dbInitializer.Seed(dbContext);
-                    transaction.Commit();
+                    var logger = scope.ServiceProvider.GetService<ILogger<ProgramBase<TStartup, TDbContext, TDbInitializer>>>();
+
+                    try
+                    {
+                        dbContext.Database.Migrate();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError("Error on migrating database.", ex);
+                    }
                 }
-                catch (Exception ex)
+            }
+
+            if (environment.ApplicationDb.ExecuteSeed)
+            {
+                using (var scope = host.Services.CreateScope())
+                using (var dbContext = scope.ServiceProvider.GetService<TDbContext>())
+                using (var transaction = dbContext.Database.BeginTransaction())
                 {
-                    transaction.Rollback();
-                    logger.LogError("Error on initializing database.", ex);
+                    var logger = scope.ServiceProvider.GetService<ILogger<ProgramBase<TStartup, TDbContext, TDbInitializer>>>();
+                    var dbInitializer = Activator.CreateInstance<TDbInitializer>();
+
+                    dbInitializer.Initialize();
+
+                    try
+                    {
+                        dbInitializer.Seed(dbContext);
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        logger.LogError("Error on running seed.", ex);
+                    }
                 }
             }
         }
