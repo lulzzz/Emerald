@@ -1,7 +1,7 @@
-﻿using Emerald.Common;
+﻿using Emerald.Abstractions;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace Emerald.AspNetCore.Transaction
+namespace Emerald.AspNetCore.Infrastructure
 {
     internal sealed class TransactionScope : ITransactionScope
     {
