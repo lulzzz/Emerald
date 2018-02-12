@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
@@ -16,7 +15,7 @@ namespace Emerald.Queue
         private const string CreateSubscriberTableQuery = "IF OBJECT_ID('Subscribers') IS NULL CREATE TABLE [dbo].[Subscribers] ([Name] NVARCHAR(64) PRIMARY KEY, [LastReadAt] DATETIME2(7) NOT NULL, [LastReadEventId] INT NOT NULL)";
         private const string RegisterSubscriberQuery = "IF (SELECT COUNT(*) FROM [dbo].[Subscribers] WHERE [Name] = '{0}') = 0 INSERT INTO [dbo].[Subscribers] ([Name], [LastReadAt], [LastReadEventId]) VALUES ('{0}', GETUTCDATE(), (SELECT COALESCE(MAX([Id]), 0) FROM [dbo].[Events]))";
         private const string LastEventIdQuery = "SELECT [LastReadEventId] FROM [dbo].[Subscribers] WHERE [Name] = '{0}'";
-        private const string EventListQuery = "SELECT [Id], [Type], [Body] FROM [dbo].[Events] WHERE [Id] > {0} ORDER BY [Id]";
+        private const string EventListQuery = "SELECT [Id], [Type], [Body], [Source], [PublishedAt] FROM [dbo].[Events] WHERE [Id] > {0} ORDER BY [Id]";
         private const string UpdateLastEventIdQuery = "UPDATE [dbo].[Subscribers] SET [LastReadEventId] = {0} WHERE [Name] = '{1}'";
         private const string UpdateLastReadAtQuery = "UPDATE [dbo].[Subscribers] SET [LastReadAt] = '{0}' WHERE [Name] = '{1}'";
         private const string InsertEventQuery = "INSERT INTO [dbo].[Events] ([Type], [Body], [Source], [PublishedAt]) VALUES ('{0}', '{1}', '{2}', '{3}')";
@@ -73,7 +72,7 @@ namespace Emerald.Queue
                 await command.ExecuteNonQueryAsync();
             }
         }
-        public IEnumerable<object> GetEvents()
+        public IEnumerable<Event> GetEvents()
         {
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -89,19 +88,20 @@ namespace Emerald.Queue
 
                     var eventListCommand = new SqlCommand(string.Format(EventListQuery, lastEventId), connection, transaction);
                     var eventListReader = eventListCommand.ExecuteReader();
-                    var eventList = new List<object>();
+                    var eventList = new List<Event>();
 
                     while (eventListReader.Read())
                     {
-                        var id = eventListReader.GetInt32(0);
-                        var typeName = eventListReader.GetString(1);
-                        var body = eventListReader.GetString(2);
+                        lastEventId = eventListReader.GetInt32(0);
 
-                        lastEventId = id;
-                        var type = Type.GetType(typeName);
-                        var @event = JsonConvert.DeserializeObject(body, type);
-
-                        eventList.Add(@event);
+                        eventList.Add(new Event
+                        {
+                            Id = lastEventId,
+                            Type = eventListReader.GetString(1),
+                            Body = eventListReader.GetString(2),
+                            Source = eventListReader.GetString(3),
+                            PublishedAt = eventListReader.GetDateTime(4)
+                        });
                     }
 
                     if (eventList.Count > 0)

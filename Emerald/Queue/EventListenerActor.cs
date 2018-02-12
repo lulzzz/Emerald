@@ -1,5 +1,6 @@
 ﻿using Akka.Actor;
 using Emerald.Abstractions;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,7 @@ namespace Emerald.Queue
 
         private readonly QueueDbAccessManager _dbAccessManager;
         private readonly Dictionary<Type, Type> _eventListenerDictionary;
+        private readonly Dictionary<string, Type> _eventTypeDictionary = new Dictionary<string, Type>();
         private readonly long _interval;
         private readonly ILogger _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -53,16 +55,16 @@ namespace Emerald.Queue
 
                 foreach (var @event in eventList)
                 {
-                    if (!_eventListenerDictionary.ContainsKey(@event.GetType())) continue;
-
                     using (var scope = _serviceScopeFactory.CreateScope())
                     using (var transaction = _transactionScopeFactory.Create(scope))
                     {
-                        var eventListener = (EventListener)scope.ServiceProvider.GetService(_eventListenerDictionary[@event.GetType()]);
-
                         try
                         {
-                            await eventListener.Handle(@event);
+                            var obj = CreateEventObject(@event);
+                            if (!_eventListenerDictionary.ContainsKey(obj.GetType())) continue;
+                            var eventListener = (EventListener)scope.ServiceProvider.GetService(_eventListenerDictionary[obj.GetType()]);
+                            eventListener.Initialize();
+                            await eventListener.Handle(obj);
                             transaction.Commit();
                         }
                         catch (Exception ex)
@@ -79,6 +81,24 @@ namespace Emerald.Queue
             }
 
             Context.System.Scheduler.ScheduleTellOnce(TimeSpan.FromMilliseconds(_interval), Self, ListenCommand, Self);
+        }
+
+        private object CreateEventObject(Event @event)
+        {
+            if (_eventTypeDictionary.ContainsKey(@event.Type))
+            {
+                return JsonConvert.DeserializeObject(@event.Body, _eventTypeDictionary[@event.Type]);
+            }
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var type = assembly.GetType(@event.Type);
+                if (type == null) continue;
+                _eventTypeDictionary.Add(@event.Type, type);
+                return JsonConvert.DeserializeObject(@event.Body, type);
+            }
+
+            throw new NotSupportedException($"Cannot find type '{@event.Type}'.");
         }
     }
 }
