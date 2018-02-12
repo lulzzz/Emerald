@@ -9,9 +9,15 @@ namespace Emerald.AspNetCore.Extensions
     {
         public static IActionResult OperationResult(this Controller controller, OperationResult operationResult)
         {
+            return OperationResult(controller, operationResult, string.Empty);
+        }
+        public static IActionResult OperationResult(this Controller controller, OperationResult operationResult, string location)
+        {
             switch (operationResult.Type)
             {
                 case OperationResultType.Success: return new OkResult();
+                case OperationResultType.Created: return new CreatedResult(location, null);
+                case OperationResultType.Deleted: return new NoContentResult();
                 case OperationResultType.NotFound: return new NotFoundResult();
                 case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
                 default: throw new NotSupportedException();
@@ -19,13 +25,23 @@ namespace Emerald.AspNetCore.Extensions
         }
         public static IActionResult OperationResult<T>(this Controller controller, OperationResult<T> operationResult)
         {
-            return OperationResult(controller, operationResult, r => r);
+            return OperationResult(controller, operationResult, r => r, string.Empty);
+        }
+        public static IActionResult OperationResult<T>(this Controller controller, OperationResult<T> operationResult, string location)
+        {
+            return OperationResult(controller, operationResult, r => r, location);
         }
         public static IActionResult OperationResult<TResult, TViewModel>(this Controller controller, OperationResult<TResult> operationResult, Func<TResult, TViewModel> viewModelFactory)
+        {
+            return OperationResult(controller, operationResult, viewModelFactory, string.Empty);
+        }
+        public static IActionResult OperationResult<TResult, TViewModel>(this Controller controller, OperationResult<TResult> operationResult, Func<TResult, TViewModel> viewModelFactory, string location)
         {
             switch (operationResult.Type)
             {
                 case OperationResultType.Success: return new OkObjectResult(viewModelFactory(operationResult.Output));
+                case OperationResultType.Created: return new CreatedResult(location, viewModelFactory(operationResult.Output));
+                case OperationResultType.Deleted: return new NoContentResult();
                 case OperationResultType.NotFound: return new NotFoundResult();
                 case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
                 default: throw new NotSupportedException();
