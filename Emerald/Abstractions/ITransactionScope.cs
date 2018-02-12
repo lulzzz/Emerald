@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Emerald.Common
+namespace Emerald.Abstractions
 {
     public interface ITransactionScope : IDisposable
     {

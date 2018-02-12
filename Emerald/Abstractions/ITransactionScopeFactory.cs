@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
-namespace Emerald.Common
+﻿namespace Emerald.Abstractions
 {
     public interface ITransactionScopeFactory
     {

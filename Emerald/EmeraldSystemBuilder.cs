@@ -1,11 +1,10 @@
 ﻿using Akka.Actor;
 using Akka.Routing;
+using Emerald.Abstractions;
 using Emerald.Common;
 using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 

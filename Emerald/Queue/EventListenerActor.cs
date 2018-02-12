@@ -1,10 +1,9 @@
 ﻿using Akka.Actor;
-using Emerald.Common;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Emerald.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Emerald.Queue
 {
@@ -36,10 +35,10 @@ namespace Emerald.Queue
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
 
-            Receive<string>(s => s == ListenCommand, s => Listen());
+            ReceiveAsync<string>(s => s == ListenCommand, s => Listen());
         }
 
-        private void Listen()
+        private async Task Listen()
         {
             try
             {
@@ -63,13 +62,13 @@ namespace Emerald.Queue
 
                         try
                         {
-                            eventListener.Handle(@event);
+                            await eventListener.Handle(@event);
                             transaction.Commit();
                         }
                         catch (Exception ex)
                         {
                             transaction.Rollback();
-                            _logger.LogError("Error on handling event.", ex);
+                            _logger.LogError(ex, "Error on handling event.");
                         }
                     }
                 }

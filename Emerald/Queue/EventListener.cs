@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Emerald.Queue
 {
@@ -15,9 +16,9 @@ namespace Emerald.Queue
             Configure(_config);
         }
 
-        internal void Handle(object @event)
+        internal Task Handle(object @event)
         {
-            _config.EventHandlerDictionary[@event.GetType()](@event);
+            return _config.EventHandlerDictionary[@event.GetType()](@event);
         }
 
         internal List<Type> GetEventTypes()

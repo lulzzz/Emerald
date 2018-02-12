@@ -1,7 +1,5 @@
 ﻿using Akka.Actor;
-using Emerald.Common;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Emerald.Abstractions;
 using System;
 using System.Threading.Tasks;
 
@@ -48,7 +46,7 @@ namespace Emerald.Jobs
                 catch (Exception ex)
                 {
                     transaction.Rollback();
-                    _logger.LogError("Error on running job.", ex);
+                    _logger.LogError(ex, "Error on running job.");
                 }
             }
 
