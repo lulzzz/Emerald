@@ -1,22 +1,30 @@
 ﻿using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 
 namespace Emerald.AspNetCore.Configuration
 {
     public sealed class EnvironmentConfigurationSection
     {
-        private readonly IConfigurationSection _configurationSection;
-
         internal EnvironmentConfigurationSection(IConfiguration configuration)
         {
-            _configurationSection = configuration.GetSection("environment");
             ApplicationDb = new ApplicationDbConfigurationSection(configuration);
-            QueueDb = new QueueDbConfigurationSection(configuration);
+            ApplicationName = configuration.GetSection("environment").GetValue<string>("applicationName");
+            Host = configuration.GetSection("environment").GetValue<string>("host");
+            Name = configuration.GetSection("environment").GetValue<string>("name");
+            Jobs = new Dictionary<string, string>();
+            Queue = new QueueConfigurationSection(configuration);
+
+            foreach (var item in configuration.GetSection("environment:jobs").GetChildren())
+            {
+                Jobs.Add(item.GetValue<string>("name"), item.GetValue<string>("crontab"));
+            }
         }
 
-        public string Name => _configurationSection.GetValue<string>("name");
-        public string ApplicationName => _configurationSection.GetValue<string>("applicationName");
-        public string Host => _configurationSection.GetValue<string>("host");
         public ApplicationDbConfigurationSection ApplicationDb { get; }
-        public QueueDbConfigurationSection QueueDb { get; }
+        public string ApplicationName { get; }
+        public string Name { get; }
+        public string Host { get; }
+        public Dictionary<string, string> Jobs { get; }
+        public QueueConfigurationSection Queue { get; }
     }
 }

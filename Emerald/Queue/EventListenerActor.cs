@@ -14,6 +14,7 @@ namespace Emerald.Queue
 
         private readonly QueueDbAccessManager _dbAccessManager;
         private readonly Dictionary<Type, Type> _eventListenerDictionary;
+        private readonly long _interval;
         private readonly ILogger _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
@@ -23,12 +24,14 @@ namespace Emerald.Queue
         public EventListenerActor(
             QueueDbAccessManager dbAccessManager,
             Dictionary<Type, Type> eventListenerDictionary,
+            long interval,
             ILogger logger,
             IServiceScopeFactory serviceScopeFactory,
             ITransactionScopeFactory transactionScopeFactory)
         {
             _dbAccessManager = dbAccessManager;
             _eventListenerDictionary = eventListenerDictionary;
+            _interval = interval;
             _logger = logger;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
@@ -76,7 +79,7 @@ namespace Emerald.Queue
                 _logger.LogError(ex, "Error on listening events.");
             }
 
-            Context.System.Scheduler.ScheduleTellOnce(TimeSpan.FromSeconds(5), Self, ListenCommand, Self);
+            Context.System.Scheduler.ScheduleTellOnce(TimeSpan.FromMilliseconds(_interval), Self, ListenCommand, Self);
         }
     }
 }

@@ -39,11 +39,11 @@ namespace Emerald
             _serviceCollection.AddScoped<T>();
             return this;
         }
-        public EmeraldSystemBuilder UseQueue(string connectionString, Action<QueueConfig> configure)
+        public EmeraldSystemBuilder UseQueue(string connectionString, long interval, Action<QueueConfig> configure)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (configure == null) throw new ArgumentNullException(nameof(configure));
-            _queueConfig = new QueueConfig(connectionString, _serviceCollection);
+            _queueConfig = new QueueConfig(connectionString, interval, _serviceCollection);
             configure(_queueConfig);
             return this;
         }
@@ -94,7 +94,7 @@ namespace Emerald
                 }
 
                 var queueDbAccessManager = new QueueDbAccessManager(_applicationName, _queueConfig.ConnectionString);
-                var eventListenerActorProps = Props.Create(() => new EventListenerActor(queueDbAccessManager, eventListenerDictionary, logger, serviceScopeFactory, transactionScopeFactory));
+                var eventListenerActorProps = Props.Create(() => new EventListenerActor(queueDbAccessManager, eventListenerDictionary, _queueConfig.Interval, logger, serviceScopeFactory, transactionScopeFactory));
                 var eventListenerActor = actorSystem.ActorOf(eventListenerActorProps);
 
                 Registry.QueueDbAccessManager = queueDbAccessManager;

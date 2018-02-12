@@ -4,15 +4,15 @@ namespace Emerald.AspNetCore.Configuration
 {
     public sealed class ApplicationDbConfigurationSection
     {
-        private readonly IConfigurationSection _configurationSection;
-
         internal ApplicationDbConfigurationSection(IConfiguration configuration)
         {
-            _configurationSection = configuration.GetSection("environment:applicationDb");
+            ConnectionString = configuration.GetSection("environment:applicationDb").GetValue<string>("connectionString");
+            MigrateDatabaseToLatestVersion = configuration.GetSection("environment:applicationDb").GetValue<bool>("migrateDatabaseToLatestVersion");
+            ExecuteSeed = configuration.GetSection("environment:applicationDb").GetValue<bool>("executeSeed");
         }
 
-        public string ConnectionString => _configurationSection.GetValue<string>("connectionString");
-        public bool MigrateDatabaseToLatestVersion => _configurationSection.GetValue<bool>("migrateDatabaseToLatestVersion");
-        public bool ExecuteSeed => _configurationSection.GetValue<bool>("executeSeed");
+        public string ConnectionString { get; }
+        public bool MigrateDatabaseToLatestVersion { get; }
+        public bool ExecuteSeed { get; }
     }
 }

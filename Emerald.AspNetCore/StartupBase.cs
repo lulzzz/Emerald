@@ -14,23 +14,22 @@ namespace Emerald.AspNetCore
 {
     public abstract class StartupBase<TDbContext> where TDbContext : DbContext
     {
-        private readonly EnvironmentConfigurationSection _environmentConfiguration;
-
         protected StartupBase(IConfiguration configuration)
         {
             Configuration = configuration;
-            _environmentConfiguration = new EnvironmentConfigurationSection(configuration);
+            Environment = new EnvironmentConfigurationSection(configuration);
         }
 
         protected IConfiguration Configuration { get; }
+        protected EnvironmentConfigurationSection Environment { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<TDbContext>(options => options.UseSqlServer(_environmentConfiguration.ApplicationDb.ConnectionString));
+            services.AddDbContext<TDbContext>(options => options.UseSqlServer(Environment.ApplicationDb.ConnectionString));
             ConfigureDependencies(services);
-            services.AddEmerald(_environmentConfiguration.ApplicationName, ConfigureEmerald);
+            services.AddEmerald(Environment, ConfigureEmerald);
             services.AddMvc(options => options.Filters.Add<EmeraldActionFilter>());
-            services.AddSwaggerGen(c => { c.SwaggerDoc("v1", new Info { Title = $"{_environmentConfiguration.ApplicationName} api", Version = "v1" }); });
+            services.AddSwaggerGen(c => { c.SwaggerDoc("v1", new Info { Title = $"{Environment.ApplicationName} api", Version = "v1" }); });
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
@@ -38,7 +37,7 @@ namespace Emerald.AspNetCore
             app.UseEmerald(new TransactionScopeFactory<TDbContext>());
             app.UseMvc();
             app.UseSwagger();
-            app.UseSwaggerUI(options => { options.SwaggerEndpoint("/swagger/v1/swagger.json", $"{_environmentConfiguration.ApplicationName} api v1"); });
+            app.UseSwaggerUI(options => { options.SwaggerEndpoint("/swagger/v1/swagger.json", $"{Environment.ApplicationName} api v1"); });
         }
 
         protected abstract void ConfigureDependencies(IServiceCollection serviceCollection);
