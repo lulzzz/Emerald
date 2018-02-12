@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <PackageId>Emerald.AspNetCore</PackageId>
-    <PackageVersion>1.0.1</PackageVersion>
+    <PackageVersion>1.0.2</PackageVersion>
     <Authors>Dmitry Sidorov</Authors>
     <Title>Emerald.AspNetCore</Title>
     <Description>Emerald framework with AspNetCore support.</Description>
@@ -13,7 +13,7 @@
     <PackageIconUrl>https://github.com/DmitriySidorov/emerald/raw/master/icon.png</PackageIconUrl>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Emerald" Version="1.0.1" />
+    <PackageReference Include="Emerald" Version="1.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.5" />
     <PackageReference Include="Serilog.AspNetCore" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.1" />
