@@ -7,9 +7,19 @@ namespace Emerald.AspNetCore.Infrastructure
     {
         private readonly ILogger _logger;
 
-        public Logger(Microsoft.Extensions.Logging.ILogger logger)
+        public Logger(ILogger logger)
         {
             _logger = logger;
+        }
+
+        public void LogInformation(string message)
+        {
+            _logger.LogInformation(message);
+        }
+
+        public void LogWarning(string message)
+        {
+            _logger.LogWarning(message);
         }
 
         public void LogError(Exception ex, string message)
