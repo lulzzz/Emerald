@@ -56,7 +56,7 @@ namespace Emerald.AspNetCore.Extensions
         {
             switch (queryResult.Type)
             {
-                case QueryResultType.Success: return new OkObjectResult(viewModelFactory(queryResult.Output));
+                case QueryResultType.Success: return new OkObjectResult(queryResult.Output == null ? (object)null : viewModelFactory(queryResult.Output));
                 case QueryResultType.NotFound: return new NotFoundResult();
                 case QueryResultType.Error: return new BadRequestObjectResult(queryResult.ErrorMessage);
                 default: throw new NotSupportedException();
