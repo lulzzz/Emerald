@@ -33,6 +33,8 @@ namespace Emerald.Jobs
 
         private async Task ExecuteJob()
         {
+            _logger.LogInformation($"Job '{_jobType.Name}' started.");
+
             using (var scope = _serviceScopeFactory.CreateScope())
             using (var transaction = _transactionScopeFactory.Create(scope))
             {
@@ -51,6 +53,8 @@ namespace Emerald.Jobs
             }
 
             Context.System.Scheduler.ScheduleTellOnce(GetDelay(_cron), Self, ExecuteJobCommand, Self);
+
+            _logger.LogInformation($"Job '{_jobType.Name}' finished.");
         }
 
         public static TimeSpan GetDelay(string cron)

@@ -66,13 +66,16 @@ namespace Emerald.Queue
                             eventListener.Initialize();
                             await eventListener.Handle(obj);
                             transaction.Commit();
+                            _logger.LogInformation($"Event handled. Event: {JsonConvert.SerializeObject(@event)}.");
                         }
                         catch (Exception ex)
                         {
                             transaction.Rollback();
-                            _logger.LogError(ex, "Error on handling event.");
+                            _logger.LogError(ex, $"Error on handling event. Event: {JsonConvert.SerializeObject(@event)}.");
                         }
                     }
+
+
                 }
             }
             catch (Exception ex)
