@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Emerald.Queue
 {
-    public sealed class EventPublisher
+    public sealed class EventPublisher : IEventPublisher
     {
         private readonly QueueDbAccessManager _queueDbAccessManager;
 
@@ -24,7 +24,7 @@ namespace Emerald.Queue
             await queueDbAccessManager.AddEvent(@event.GetType().FullName, JsonConvert.SerializeObject(@event));
         }
 
-        public static EventPublisher Create(string applicationName, string connectionString)
+        public static IEventPublisher Create(string applicationName, string connectionString)
         {
             var queueDbAccessManager = new QueueDbAccessManager(applicationName, connectionString);
             queueDbAccessManager.CreateQueueDbIfNeeded();

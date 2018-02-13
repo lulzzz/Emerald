@@ -23,7 +23,7 @@ namespace Emerald
             _applicationName = applicationName ?? throw new ArgumentNullException(nameof(applicationName));
             _serviceCollection = serviceCollection ?? throw new ArgumentNullException(nameof(serviceCollection));
             _serviceCollection.AddSingleton(new CommandExecutor());
-            _serviceCollection.AddSingleton(new EventPublisher());
+            _serviceCollection.AddSingleton<IEventPublisher>(new EventPublisher());
         }
 
         public EmeraldSystemBuilder AddCommandHandler<T>() where T : CommandHandler
