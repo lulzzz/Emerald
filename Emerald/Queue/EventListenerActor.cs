@@ -61,6 +61,7 @@ namespace Emerald.Queue
                         try
                         {
                             var obj = CreateEventObject(@event);
+                            if (obj == null) { _logger.LogWarning($"Cannot find event type. Event: {JsonConvert.SerializeObject(@event)}."); continue; }
                             if (!_eventListenerDictionary.ContainsKey(obj.GetType())) continue;
                             var eventListener = (EventListener)scope.ServiceProvider.GetService(_eventListenerDictionary[obj.GetType()]);
                             eventListener.Initialize();
@@ -101,7 +102,7 @@ namespace Emerald.Queue
                 return JsonConvert.DeserializeObject(@event.Body, type);
             }
 
-            throw new NotSupportedException($"Cannot find type '{@event.Type}'.");
+            return null;
         }
     }
 }
