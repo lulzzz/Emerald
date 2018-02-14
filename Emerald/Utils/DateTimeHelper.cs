@@ -10,6 +10,10 @@ namespace Emerald.Utils
             return DateTimeOffset.FromUnixTimeMilliseconds(milliseconds).UtcDateTime;
         }
 
+        public static long ToUnixTimeSeconds(this DateTime dateTime)
+        {
+            return new DateTimeOffset(dateTime, TimeSpan.Zero).ToUnixTimeSeconds();
+        }
         public static long ToUnixTimeMilliseconds(this DateTime dateTime)
         {
             return new DateTimeOffset(dateTime, TimeSpan.Zero).ToUnixTimeMilliseconds();
