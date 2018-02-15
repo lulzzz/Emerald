@@ -28,6 +28,7 @@ namespace Emerald.AspNetCore
             services.AddDbContext<TDbContext>(options => options.UseSqlServer(Environment.ApplicationDb.ConnectionString));
             ConfigureDependencies(services);
             services.AddEmerald(Environment, ConfigureEmerald);
+            services.AddMemoryCache();
             services.AddMvc(options => options.Filters.Add<EmeraldActionFilter>());
             services.AddSwaggerGen(c => { c.SwaggerDoc("v1", new Info { Title = $"{Environment.ApplicationName} api", Version = "v1" }); });
         }
