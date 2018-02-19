@@ -16,7 +16,7 @@ namespace Emerald.AspNetCore.Configuration
 
             foreach (var item in configuration.GetSection("environment:jobs").GetChildren())
             {
-                Jobs.Add(item.GetValue<string>("name"), item.GetValue<string>("crontab"));
+                if (item.GetValue<bool>("enabled")) Jobs.Add(item.GetValue<string>("name"), item.GetValue<string>("crontab"));
             }
         }
 

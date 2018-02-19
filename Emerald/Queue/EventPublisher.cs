@@ -1,5 +1,4 @@
-﻿using Emerald.Common;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Threading.Tasks;
 
@@ -9,9 +8,6 @@ namespace Emerald.Queue
     {
         private readonly QueueDbAccessManager _queueDbAccessManager;
 
-        internal EventPublisher()
-        {
-        }
         internal EventPublisher(QueueDbAccessManager queueDbAccessManager)
         {
             _queueDbAccessManager = queueDbAccessManager;
@@ -20,8 +16,8 @@ namespace Emerald.Queue
         public async Task Publish(object @event)
         {
             if (@event == null) throw new ArgumentNullException(nameof(@event));
-            var queueDbAccessManager = _queueDbAccessManager ?? Registry.QueueDbAccessManager;
-            await queueDbAccessManager.AddEvent(@event.GetType().FullName, JsonConvert.SerializeObject(@event));
+            if (_queueDbAccessManager == null) return;
+            await _queueDbAccessManager.AddEvent(@event.GetType().Name, JsonConvert.SerializeObject(@event));
         }
 
         public static IEventPublisher Create(string applicationName, string connectionString)

@@ -1,4 +1,5 @@
 ﻿using Akka.Actor;
+using Akka.Event;
 using Emerald.Abstractions;
 using System;
 using System.Threading.Tasks;
@@ -7,33 +8,28 @@ namespace Emerald.Jobs
 {
     internal sealed class JobActor : ReceiveActor
     {
-        private readonly string _cron;
+        private readonly TimeSpan _delay;
         private readonly Type _jobType;
-        private readonly ILogger _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
 
-        public const string ExecuteJobCommand = "EXECUTE";
+        public const string ExecuteJobCommand = "EXECUTEJOB";
+        public const string ScheduleJobCommand = "SCHEDULEJOB";
 
-        public JobActor(
-            string cron,
-            Type jobType,
-            ILogger logger,
-            IServiceScopeFactory serviceScopeFactory,
-            ITransactionScopeFactory transactionScopeFactory)
+        public JobActor(string crontab, Type jobType, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
-            _cron = cron;
+            _delay = GetDelay(crontab);
             _jobType = jobType;
-            _logger = logger;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
-
-            ReceiveAsync<string>(msg => msg == ExecuteJobCommand, msg => ExecuteJob());
+            Receive<string>(msg => msg == ExecuteJobCommand, msg => ExecuteJob().PipeTo(Self));
+            Receive<string>(msg => msg == ScheduleJobCommand, msg => ScheduleJob());
         }
 
-        private async Task ExecuteJob()
+        private async Task<string> ExecuteJob()
         {
-            _logger.LogInformation($"Job '{_jobType.Name}' started.");
+            var logger = Context.GetLogger();
+            logger.Info($"Job '{_jobType.Name}' started.");
 
             using (var scope = _serviceScopeFactory.CreateScope())
             using (var transaction = _transactionScopeFactory.Create(scope))
@@ -48,19 +44,22 @@ namespace Emerald.Jobs
                 catch (Exception ex)
                 {
                     transaction.Rollback();
-                    _logger.LogError(ex, "Error on running job.");
+                    logger.Error(ex, "Error on job execution.");
                 }
             }
 
-            Context.System.Scheduler.ScheduleTellOnce(GetDelay(_cron), Self, ExecuteJobCommand, Self);
+            logger.Info($"Job '{_jobType.Name}' finished.");
 
-            _logger.LogInformation($"Job '{_jobType.Name}' finished.");
+            return ScheduleJobCommand;
         }
-
-        public static TimeSpan GetDelay(string cron)
+        private void ScheduleJob()
+        {
+            Context.System.Scheduler.ScheduleTellOnce(_delay, Self, ExecuteJobCommand, Self);
+        }
+        private TimeSpan GetDelay(string crontab)
         {
             var now = DateTime.UtcNow;
-            var next = NCrontab.CrontabSchedule.Parse(cron).GetNextOccurrence(now);
+            var next = NCrontab.CrontabSchedule.Parse(crontab).GetNextOccurrence(now);
             var duration = (next - now).Duration();
             return duration;
         }

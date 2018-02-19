@@ -1,6 +1,5 @@
 ﻿using Akka.Actor;
 using Emerald.Abstractions;
-using Emerald.Common;
 using System;
 using System.Threading.Tasks;
 

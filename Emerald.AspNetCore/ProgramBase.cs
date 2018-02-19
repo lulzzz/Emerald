@@ -32,7 +32,7 @@ namespace Emerald.AspNetCore
 
             Log.Logger =
                 string.Equals(environmentName, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase) ?
-                    new LoggerConfiguration().MinimumLevel.Debug().MinimumLevel.Override("Microsoft", LogEventLevel.Information).Enrich.FromLogContext().WriteTo.Console().CreateLogger() :
+                    new LoggerConfiguration().MinimumLevel.Information().MinimumLevel.Override("Microsoft", LogEventLevel.Information).Enrich.FromLogContext().WriteTo.Console().CreateLogger() :
                     new LoggerConfiguration().MinimumLevel.Information().MinimumLevel.Override("Microsoft", LogEventLevel.Warning).Enrich.FromLogContext().WriteTo.Console().CreateLogger();
 
             builder.UseSerilog();

@@ -27,7 +27,7 @@ namespace Emerald.AspNetCore
         {
             services.AddDbContext<TDbContext>(options => options.UseSqlServer(Environment.ApplicationDb.ConnectionString));
             ConfigureDependencies(services);
-            services.AddEmerald(Environment, ConfigureEmerald);
+            services.AddEmerald<ServiceScopeFactory, TransactionScopeFactory<TDbContext>>(ConfigureEmerald);
             services.AddMemoryCache();
             services.AddMvc(options => options.Filters.Add<EmeraldActionFilter>());
             services.AddSwaggerGen(c => { c.SwaggerDoc("v1", new Info { Title = $"{Environment.ApplicationName} api", Version = "v1" }); });
@@ -35,7 +35,7 @@ namespace Emerald.AspNetCore
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            app.UseEmerald(new TransactionScopeFactory<TDbContext>());
+            app.UseEmerald();
             app.UseMvc();
             app.UseSwagger();
             app.UseSwaggerUI(options => { options.SwaggerEndpoint("/swagger/v1/swagger.json", $"{Environment.ApplicationName} api v1"); });

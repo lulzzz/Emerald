@@ -1,7 +1,6 @@
 ﻿using Akka.Actor;
 using Akka.Routing;
 using Emerald.Abstractions;
-using Emerald.Common;
 using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
@@ -10,60 +9,64 @@ using System.Collections.Generic;
 
 namespace Emerald
 {
-    public sealed class EmeraldSystemBuilder
+    public sealed class EmeraldSystemBuilder<TServiceScopeFactory, TTransactionScopeFactory> : IEmeraldSystemBuilder where TServiceScopeFactory : class, IServiceScopeFactory where TTransactionScopeFactory : class, ITransactionScopeFactory
     {
         private readonly string _applicationName;
-        private readonly IServiceCollection _serviceCollection;
         private readonly List<Type> _commandHandlerTypeList = new List<Type>();
         private readonly List<Tuple<Type, string>> _jobTypeList = new List<Tuple<Type, string>>();
         private QueueConfig _queueConfig;
+        private readonly IServiceCollection _serviceCollection;
 
         public EmeraldSystemBuilder(string applicationName, IServiceCollection serviceCollection)
         {
             _applicationName = applicationName ?? throw new ArgumentNullException(nameof(applicationName));
             _serviceCollection = serviceCollection ?? throw new ArgumentNullException(nameof(serviceCollection));
-            _serviceCollection.AddSingleton(new CommandExecutor());
-            _serviceCollection.AddSingleton<IEventPublisher>(new EventPublisher());
         }
 
-        public EmeraldSystemBuilder AddCommandHandler<T>() where T : CommandHandler
+        public IEmeraldSystemBuilder AddCommandHandler<T>() where T : CommandHandler
         {
             _commandHandlerTypeList.Add(typeof(T));
-            _serviceCollection.AddScoped<T>();
             return this;
         }
-        public EmeraldSystemBuilder AddJob<T>(string cron) where T : class, IJob
+        public IEmeraldSystemBuilder AddJob<T>(string crontab) where T : class, IJob
         {
-            _jobTypeList.Add(new Tuple<Type, string>(typeof(T), cron));
-            _serviceCollection.AddScoped<T>();
+            _jobTypeList.Add(new Tuple<Type, string>(typeof(T), crontab));
             return this;
         }
-        public EmeraldSystemBuilder UseQueue(string connectionString, long interval, Action<QueueConfig> configure)
+        public IEmeraldSystemBuilder UseQueue(string connectionString, long interval, Action<QueueConfig> configure)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
+            if (interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than 0.");
             if (configure == null) throw new ArgumentNullException(nameof(configure));
-            _queueConfig = new QueueConfig(connectionString, interval, _serviceCollection);
+            _queueConfig = new QueueConfig(_applicationName, connectionString, interval);
             configure(_queueConfig);
             return this;
         }
 
-        public EmeraldSystem Build(ILogger logger, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
+        public EmeraldSystem Build()
         {
-            if (logger == null) throw new ArgumentNullException(nameof(logger));
-            if (serviceScopeFactory == null) throw new ArgumentNullException(nameof(serviceScopeFactory));
-            if (transactionScopeFactory == null) throw new ArgumentNullException(nameof(transactionScopeFactory));
-
             const string akkaConfig =
-                @"akka {
-                    loglevel=INFO,
-                    loggers=[""Akka.Logger.Serilog.SerilogLogger, Akka.Logger.Serilog""]
-                }";
+                "akka { " +
+                    "stdout-loglevel = INFO, " +
+                    "log-config-on-start = on, " +
+                    "loglevel=INFO, " +
+                    "loggers=[\"Akka.Logger.Serilog.SerilogLogger, Akka.Logger.Serilog\"] " +
+                "}";
 
             var actorSystem = ActorSystem.Create(_applicationName, akkaConfig);
-
-            Registry.ActorSystem = actorSystem;
-
             var commandHandlerActorDictionary = new Dictionary<Type, IActorRef>();
+
+            _serviceCollection.AddScoped<IServiceScopeFactory, TServiceScopeFactory>();
+            _serviceCollection.AddScoped<ITransactionScopeFactory, TTransactionScopeFactory>();
+            _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
+            _jobTypeList.ForEach(j => _serviceCollection.AddScoped(j.Item1));
+            _queueConfig?.EventListenerTypeList.ForEach(_serviceCollection.AddScoped);
+            _serviceCollection.AddSingleton(new CommandExecutor(actorSystem, commandHandlerActorDictionary));
+            _serviceCollection.AddSingleton(new EventPublisher(_queueConfig?.QueueDbAccessManager));
+
+            var serviceProvider = _serviceCollection.BuildServiceProvider();
+            var serviceScopeFactory = (IServiceScopeFactory)serviceProvider.GetService(typeof(IServiceScopeFactory));
+            var transactionScopeFactory = (ITransactionScopeFactory)serviceProvider.GetService(typeof(ITransactionScopeFactory));
 
             foreach (var commandHandlerType in _commandHandlerTypeList)
             {
@@ -73,37 +76,28 @@ namespace Emerald
                 commandTypes.ForEach(t => commandHandlerActorDictionary.Add(t, commandHandlerActor));
             }
 
-            Registry.CommandHandlerActorDictionary = commandHandlerActorDictionary;
-
             foreach (var jobType in _jobTypeList)
             {
-                var jobActorProps = Props.Create(() => new JobActor(jobType.Item2, jobType.Item1, logger, serviceScopeFactory, transactionScopeFactory));
+                var jobActorProps = Props.Create(() => new JobActor(jobType.Item2, jobType.Item1, serviceScopeFactory, transactionScopeFactory));
                 var jobActor = actorSystem.ActorOf(jobActorProps);
-                actorSystem.Scheduler.ScheduleTellOnce(JobActor.GetDelay(jobType.Item2), jobActor, JobActor.ExecuteJobCommand, ActorRefs.NoSender);
+                jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
             }
 
             if (_queueConfig != null && _queueConfig.EventListenerTypeList.Count > 0)
             {
-                var eventListenerDictionary = new Dictionary<Type, Type>();
-
                 foreach (var eventListenerType in _queueConfig.EventListenerTypeList)
                 {
                     var eventTypes = GetEventTypes(eventListenerType, serviceScopeFactory);
-                    eventTypes.ForEach(t => eventListenerDictionary.Add(t, eventListenerType));
+                    eventTypes.ForEach(t => _queueConfig.EventListenerDictionary.Add(t, eventListenerType));
                 }
 
-                var queueDbAccessManager = new QueueDbAccessManager(_applicationName, _queueConfig.ConnectionString);
-                var eventListenerActorProps = Props.Create(() => new EventListenerActor(queueDbAccessManager, eventListenerDictionary, _queueConfig.Interval, logger, serviceScopeFactory, transactionScopeFactory));
+                var eventListenerActorProps = Props.Create(() => new EventListenerActor(_queueConfig, serviceScopeFactory, transactionScopeFactory));
                 var eventListenerActor = actorSystem.ActorOf(eventListenerActorProps);
-
-                Registry.QueueDbAccessManager = queueDbAccessManager;
-
-                actorSystem.Scheduler.ScheduleTellOnce(TimeSpan.FromSeconds(5), eventListenerActor, EventListenerActor.ListenCommand, ActorRefs.NoSender);
+                eventListenerActor.Tell(EventListenerActor.ScheduleNextListenCommand);
             }
 
             return new EmeraldSystem(actorSystem);
         }
-
         private List<Type> GetCommandTypes(Type commandHandlerType, IServiceScopeFactory serviceScopeFactory)
         {
             using (var scope = serviceScopeFactory.CreateScope())

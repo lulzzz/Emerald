@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace Emerald.AspNetCore.Infrastructure
 {
@@ -16,9 +17,19 @@ namespace Emerald.AspNetCore.Infrastructure
             _serviceCollection.AddSingleton(obj);
         }
 
-        public void AddScoped<T>() where T : class
+        public void AddScoped(Type type)
         {
-            _serviceCollection.AddScoped<T>();
+            _serviceCollection.AddScoped(type);
+        }
+
+        public void AddScoped<TService, TImplementation>() where TImplementation : class, TService where TService : class
+        {
+            _serviceCollection.AddScoped<TService, TImplementation>();
+        }
+
+        public IServiceProvider BuildServiceProvider()
+        {
+            return _serviceCollection.BuildServiceProvider();
         }
     }
 }

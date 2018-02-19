@@ -1,4 +1,5 @@
 ﻿using Akka.Actor;
+using Akka.Event;
 using Emerald.Abstractions;
 using Newtonsoft.Json;
 using System;
@@ -11,98 +12,74 @@ namespace Emerald.Queue
     internal sealed class EventListenerActor : ReceiveActor
     {
         private static bool _initialized;
-
-        private readonly QueueDbAccessManager _dbAccessManager;
-        private readonly Dictionary<Type, Type> _eventListenerDictionary;
-        private readonly Dictionary<string, Type> _eventTypeDictionary = new Dictionary<string, Type>();
-        private readonly long _interval;
-        private readonly ILogger _logger;
+        private readonly Dictionary<string, Type> _eventTypeDictionary;
+        private readonly QueueConfig _queueConfig;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
-
         public const string ListenCommand = "LISTEN";
+        public const string ScheduleNextListenCommand = "SCHEDULENEXTLISTEN";
 
-        public EventListenerActor(
-            QueueDbAccessManager dbAccessManager,
-            Dictionary<Type, Type> eventListenerDictionary,
-            long interval,
-            ILogger logger,
-            IServiceScopeFactory serviceScopeFactory,
-            ITransactionScopeFactory transactionScopeFactory)
+        public EventListenerActor(QueueConfig queueConfig, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
-            _dbAccessManager = dbAccessManager;
-            _eventListenerDictionary = eventListenerDictionary;
-            _interval = interval;
-            _logger = logger;
+            _eventTypeDictionary = queueConfig.EventListenerDictionary.ToDictionary(i => i.Key.Name, i => i.Key);
+            _queueConfig = queueConfig;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
-
-            ReceiveAsync<string>(s => s == ListenCommand, s => Listen());
+            Receive<string>(s => s == ListenCommand, s => Listen().PipeTo(Self));
+            Receive<string>(msg => msg == ScheduleNextListenCommand, msg => ScheduleNextListen());
         }
 
-        private async Task Listen()
+        private async Task<string> Listen()
         {
+            var logger = Context.GetLogger();
+
             try
             {
                 if (!_initialized)
                 {
-                    _dbAccessManager.CreateQueueDbIfNeeded();
-                    _dbAccessManager.RegisterSubscriberIfNeeded();
+                    _queueConfig.QueueDbAccessManager.CreateQueueDbIfNeeded();
+                    _queueConfig.QueueDbAccessManager.RegisterSubscriberIfNeeded();
                     _initialized = true;
                 }
 
-                var eventList = _dbAccessManager.GetEvents().ToList();
+                var eventList = _queueConfig.QueueDbAccessManager.GetEvents().Where(e => _eventTypeDictionary.ContainsKey(e.Type)).ToList();
+                if (eventList.Count == 0) return ScheduleNextListenCommand;
+                logger.Info($"{eventList.Count} events received.");
 
                 foreach (var @event in eventList)
                 {
                     using (var scope = _serviceScopeFactory.CreateScope())
                     using (var transaction = _transactionScopeFactory.Create(scope))
                     {
+                        logger.Info($"Starting handle event '{@event.Id}:{@event.Type}'.");
+
                         try
                         {
-                            var obj = CreateEventObject(@event);
-                            if (obj == null) { _logger.LogWarning($"Cannot find event type. Event: {JsonConvert.SerializeObject(@event)}."); continue; }
-                            if (!_eventListenerDictionary.ContainsKey(obj.GetType())) continue;
-                            var eventListener = (EventListener)scope.ServiceProvider.GetService(_eventListenerDictionary[obj.GetType()]);
+                            var eventObj = JsonConvert.DeserializeObject(@event.Body, _eventTypeDictionary[@event.Type]);
+                            var eventListener = (EventListener)scope.ServiceProvider.GetService(_queueConfig.EventListenerDictionary[eventObj.GetType()]);
                             eventListener.Initialize();
-                            await eventListener.Handle(obj);
+                            await eventListener.Handle(eventObj);
                             transaction.Commit();
-                            _logger.LogInformation($"Event handled. Event: {JsonConvert.SerializeObject(@event)}.");
+                            logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
                         }
                         catch (Exception ex)
                         {
                             transaction.Rollback();
-                            _logger.LogError(ex, $"Error on handling event. Event: {JsonConvert.SerializeObject(@event)}.");
+                            logger.Error(ex, $"Error on handling event '{@event.Id}:{@event.Type}'.");
                         }
                     }
-
-
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error on listening events.");
+                logger.Error(ex, "Error on listening events.");
             }
 
-            Context.System.Scheduler.ScheduleTellOnce(TimeSpan.FromMilliseconds(_interval), Self, ListenCommand, Self);
+            return ScheduleNextListenCommand;
         }
-
-        private object CreateEventObject(Event @event)
+        private void ScheduleNextListen()
         {
-            if (_eventTypeDictionary.ContainsKey(@event.Type))
-            {
-                return JsonConvert.DeserializeObject(@event.Body, _eventTypeDictionary[@event.Type]);
-            }
-
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                var type = assembly.GetType(@event.Type);
-                if (type == null) continue;
-                _eventTypeDictionary.Add(@event.Type, type);
-                return JsonConvert.DeserializeObject(@event.Body, type);
-            }
-
-            return null;
+            Context.System.Scheduler.ScheduleTellOnce(TimeSpan.FromMilliseconds(_queueConfig.Interval), Self, ListenCommand, Self);
         }
     }
 }

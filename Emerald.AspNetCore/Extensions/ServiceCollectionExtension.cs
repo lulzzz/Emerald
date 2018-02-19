@@ -1,5 +1,7 @@
-﻿using Emerald.AspNetCore.Common;
+﻿using Emerald.Abstractions;
+using Emerald.AspNetCore.Common;
 using Emerald.AspNetCore.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 
@@ -7,12 +9,16 @@ namespace Emerald.AspNetCore.Extensions
 {
     public static class ServiceCollectionExtension
     {
-        public static IServiceCollection AddEmerald(this IServiceCollection serviceCollection, EnvironmentConfigurationSection environment, Action<EmeraldOptions> options)
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddEmerald<TServiceScopeFactory, TTransactionScopeFactory>(
+            this Microsoft.Extensions.DependencyInjection.IServiceCollection services,
+            Action<EmeraldOptions> options) where TServiceScopeFactory : class, Abstractions.IServiceScopeFactory where TTransactionScopeFactory : class, ITransactionScopeFactory
         {
-            var builder = new EmeraldSystemBuilder(environment.ApplicationName, new Infrastructure.ServiceCollection(serviceCollection));
-            options(new EmeraldOptions(environment, builder));
-            Registry.EmeraldSystemBuilder = builder;
-            return serviceCollection;
+            var serviceProvider = services.BuildServiceProvider();
+            var environment = new EnvironmentConfigurationSection(serviceProvider.GetService<IConfiguration>());
+            var emeraldSystemBuilder = new EmeraldSystemBuilder<TServiceScopeFactory, TTransactionScopeFactory>(environment.ApplicationName, new Infrastructure.ServiceCollection(services));
+            options(new EmeraldOptions(emeraldSystemBuilder, environment));
+            Registry.EmeraldSystem = emeraldSystemBuilder.Build();
+            return services;
         }
     }
 }

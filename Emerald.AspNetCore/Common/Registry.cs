@@ -2,6 +2,6 @@
 {
     internal static class Registry
     {
-        public static EmeraldSystemBuilder EmeraldSystemBuilder { get; set; }
+        public static EmeraldSystem EmeraldSystem { get; set; }
     }
 }

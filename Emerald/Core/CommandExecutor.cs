@@ -1,23 +1,28 @@
 ﻿using Akka.Actor;
-using Emerald.Common;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Emerald.Core
 {
     public sealed class CommandExecutor
     {
-        internal CommandExecutor()
+        private readonly ActorSystem _actorSystem;
+        private readonly Dictionary<Type, IActorRef> _commandHandlerDictionary;
+
+        internal CommandExecutor(ActorSystem actorSystem, Dictionary<Type, IActorRef> commandHandlerDictionary)
         {
+            _actorSystem = actorSystem;
+            _commandHandlerDictionary = commandHandlerDictionary;
         }
 
         public async Task<T> Execute<T>(Command command)
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
 
-            var commandExecutionResultActor = Registry.ActorSystem.ActorOf(Props.Create(() => new CommandExecutionResultActor(command.Id)));
-            Registry.ActorSystem.EventStream.Subscribe(commandExecutionResultActor, typeof(CommandExecutionResult));
-            Registry.CommandHandlerActorDictionary[command.GetType()].Tell(command);
+            var commandExecutionResultActor = _actorSystem.ActorOf(Props.Create(() => new CommandExecutionResultActor(command.Id)));
+            _actorSystem.EventStream.Subscribe(commandExecutionResultActor, typeof(CommandExecutionResult));
+            _commandHandlerDictionary[command.GetType()].Tell(command);
 
             try
             {
@@ -27,7 +32,7 @@ namespace Emerald.Core
             }
             finally
             {
-                Registry.ActorSystem.EventStream.Unsubscribe(commandExecutionResultActor);
+                _actorSystem.EventStream.Unsubscribe(commandExecutionResultActor);
                 commandExecutionResultActor.Tell(PoisonPill.Instance);
             }
         }

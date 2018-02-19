@@ -7,13 +7,13 @@ namespace Emerald.AspNetCore.Common
 {
     public sealed class EmeraldOptions
     {
+        private readonly IEmeraldSystemBuilder _emeraldSystemBuilder;
         private readonly EnvironmentConfigurationSection _environment;
-        private readonly EmeraldSystemBuilder _emeraldSystemBuilder;
 
-        internal EmeraldOptions(EnvironmentConfigurationSection environment, EmeraldSystemBuilder emeraldSystemBuilder)
+        internal EmeraldOptions(IEmeraldSystemBuilder emeraldSystemBuilder, EnvironmentConfigurationSection environment)
         {
-            _environment = environment;
             _emeraldSystemBuilder = emeraldSystemBuilder;
+            _environment = environment;
         }
 
         public void AddCommandHandler<T>() where T : CommandHandler
