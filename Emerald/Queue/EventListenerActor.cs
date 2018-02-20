@@ -44,7 +44,7 @@ namespace Emerald.Queue
 
                 var eventList = _queueConfig.QueueDbAccessManager.GetEvents().Where(e => _eventTypeDictionary.ContainsKey(e.Type)).ToList();
                 if (eventList.Count == 0) return ScheduleNextListenCommand;
-                logger.Info($"{eventList.Count} events received.");
+                logger.Info($"{eventList.Count} event(s) received.");
 
                 foreach (var @event in eventList)
                 {
