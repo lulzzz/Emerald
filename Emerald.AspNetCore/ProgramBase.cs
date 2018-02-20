@@ -20,29 +20,40 @@ namespace Emerald.AspNetCore
             var configuration = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.json", false).Build();
             var environment = new EnvironmentConfigurationSection(configuration);
             var builder = WebHost.CreateDefaultBuilder(args).UseStartup<TStartup>();
+            ConfiguringApplicationInsights(builder, environment);
+            ConfiguringDevelopmentHost(builder, environment);
             ConfiguringLogging(builder, environment);
-            ConfiguringUrls(builder, environment);
             var host = builder.Build();
             ConfiguringDatabase(host, environment);
             host.Run();
         }
+
+        private static void ConfiguringApplicationInsights(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
+        {
+            if (environment.ApplicationInsights.Enabled) builder.UseApplicationInsights(environment.ApplicationInsights.Key);
+        }
+
         private static void ConfiguringLogging(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
         {
             var environmentName = environment.Name;
+            var logging = environment.Logging;
+            var loggerConfiguration = new LoggerConfiguration().MinimumLevel.Information().Enrich.FromLogContext();
 
-            Log.Logger =
-                string.Equals(environmentName, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase) ?
-                    new LoggerConfiguration().MinimumLevel.Information().MinimumLevel.Override("Microsoft", LogEventLevel.Information).Enrich.FromLogContext().WriteTo.Console().CreateLogger() :
-                    new LoggerConfiguration().MinimumLevel.Information().MinimumLevel.Override("Microsoft", LogEventLevel.Warning).Enrich.FromLogContext().WriteTo.Console().CreateLogger();
+            if (logging.Console.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Console();
+            if (logging.ElasticSearch.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Elasticsearch(logging.ElasticSearch.NodeUri, logging.ElasticSearch.IndexFormat);
+
+            if (!string.Equals(environmentName, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase))
+            {
+                loggerConfiguration = loggerConfiguration.MinimumLevel.Override("Microsoft", LogEventLevel.Warning);
+            }
+
+            Log.Logger = loggerConfiguration.CreateLogger();
 
             builder.UseSerilog();
         }
-        private static void ConfiguringUrls(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
+        private static void ConfiguringDevelopmentHost(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
         {
-            if (string.Equals(environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase))
-            {
-                builder.UseUrls(environment.Host);
-            }
+            if (string.Equals(environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase)) builder.UseUrls(environment.Development.Host);
         }
         private static void ConfiguringDatabase(IWebHost host, EnvironmentConfigurationSection environment)
         {

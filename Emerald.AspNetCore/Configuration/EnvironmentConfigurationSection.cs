@@ -8,8 +8,10 @@ namespace Emerald.AspNetCore.Configuration
         internal EnvironmentConfigurationSection(IConfiguration configuration)
         {
             ApplicationDb = new ApplicationDbConfigurationSection(configuration);
+            ApplicationInsights = new ApplicationInsightsConfigurationSection(configuration);
             ApplicationName = configuration.GetSection("environment").GetValue<string>("applicationName");
-            Host = configuration.GetSection("environment").GetValue<string>("host");
+            Development = new DevelopmentConfigurationSection(configuration);
+            Logging = new LoggingConfigurationSection(configuration);
             Name = configuration.GetSection("environment").GetValue<string>("name");
             Jobs = new Dictionary<string, string>();
             Queue = new QueueConfigurationSection(configuration);
@@ -21,9 +23,11 @@ namespace Emerald.AspNetCore.Configuration
         }
 
         public ApplicationDbConfigurationSection ApplicationDb { get; }
+        public ApplicationInsightsConfigurationSection ApplicationInsights { get; }
         public string ApplicationName { get; }
+        public DevelopmentConfigurationSection Development { get; }
+        public LoggingConfigurationSection Logging { get; }
         public string Name { get; }
-        public string Host { get; }
         public Dictionary<string, string> Jobs { get; }
         public QueueConfigurationSection Queue { get; }
     }

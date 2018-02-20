@@ -39,6 +39,8 @@ namespace Emerald.AspNetCore
             app.UseMvc();
             app.UseSwagger();
             app.UseSwaggerUI(options => { options.SwaggerEndpoint("/swagger/v1/swagger.json", $"{Environment.ApplicationName} api v1"); });
+            env.ApplicationName = Environment.ApplicationName;
+            env.EnvironmentName = Environment.Name;
         }
 
         protected abstract void ConfigureDependencies(IServiceCollection serviceCollection);
