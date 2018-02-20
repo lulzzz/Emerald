@@ -1,7 +1,7 @@
 ﻿using Emerald.AspNetCore.Configuration;
 using Emerald.Core;
 using Emerald.Jobs;
-using System;
+using Emerald.Queue;
 
 namespace Emerald.AspNetCore.Common
 {
@@ -26,9 +26,9 @@ namespace Emerald.AspNetCore.Common
             _emeraldSystemBuilder.AddJob<T>(_environment.Jobs[typeof(T).Name]);
         }
 
-        public void UseQueue(Action<QueueOptions> configure)
+        public void UseQueue<T>() where T : EventListener
         {
-            _emeraldSystemBuilder.UseQueue(_environment.Queue.ConnectionString, _environment.Queue.Interval, cfg => configure(new QueueOptions(cfg)));
+            _emeraldSystemBuilder.UseQueue<T>(_environment.Queue.ConnectionString, _environment.Queue.Interval);
         }
     }
 }

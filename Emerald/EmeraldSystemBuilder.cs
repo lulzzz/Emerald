@@ -33,13 +33,11 @@ namespace Emerald
             _jobTypeList.Add(new Tuple<Type, string>(typeof(T), crontab));
             return this;
         }
-        public IEmeraldSystemBuilder UseQueue(string connectionString, long interval, Action<QueueConfig> configure)
+        public IEmeraldSystemBuilder UseQueue<T>(string connectionString, long interval) where T : EventListener
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than 0.");
-            if (configure == null) throw new ArgumentNullException(nameof(configure));
-            _queueConfig = new QueueConfig(_applicationName, connectionString, interval);
-            configure(_queueConfig);
+            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, typeof(T));
             return this;
         }
 
@@ -60,7 +58,7 @@ namespace Emerald
             _serviceCollection.AddScoped<ITransactionScopeFactory, TTransactionScopeFactory>();
             _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
             _jobTypeList.ForEach(j => _serviceCollection.AddScoped(j.Item1));
-            _queueConfig?.EventListenerTypeList.ForEach(_serviceCollection.AddScoped);
+            if (_queueConfig != null) _serviceCollection.AddScoped(_queueConfig.EventListenerType);
             _serviceCollection.AddSingleton(new CommandExecutor(actorSystem, commandHandlerActorDictionary));
             _serviceCollection.AddSingleton(new EventPublisher(_queueConfig?.QueueDbAccessManager));
 
@@ -83,14 +81,9 @@ namespace Emerald
                 jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
             }
 
-            if (_queueConfig != null && _queueConfig.EventListenerTypeList.Count > 0)
+            if (_queueConfig != null)
             {
-                foreach (var eventListenerType in _queueConfig.EventListenerTypeList)
-                {
-                    var eventTypes = GetEventTypes(eventListenerType, serviceScopeFactory);
-                    eventTypes.ForEach(t => _queueConfig.EventListenerDictionary.Add(t, eventListenerType));
-                }
-
+                _queueConfig.EventTypeList.AddRange(GetEventTypes(_queueConfig.EventListenerType, serviceScopeFactory));
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(_queueConfig, serviceScopeFactory, transactionScopeFactory));
                 var eventListenerActor = actorSystem.ActorOf(eventListenerActorProps);
                 eventListenerActor.Tell(EventListenerActor.ScheduleNextListenCommand);

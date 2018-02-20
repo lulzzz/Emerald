@@ -21,7 +21,7 @@ namespace Emerald.Queue
 
         public EventListenerActor(QueueConfig queueConfig, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
-            _eventTypeDictionary = queueConfig.EventListenerDictionary.ToDictionary(i => i.Key.Name, i => i.Key);
+            _eventTypeDictionary = queueConfig.EventTypeList.ToDictionary(i => i.Name, i => i);
             _queueConfig = queueConfig;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
@@ -56,7 +56,7 @@ namespace Emerald.Queue
                         try
                         {
                             var eventObj = JsonConvert.DeserializeObject(@event.Body, _eventTypeDictionary[@event.Type]);
-                            var eventListener = (EventListener)scope.ServiceProvider.GetService(_queueConfig.EventListenerDictionary[eventObj.GetType()]);
+                            var eventListener = (EventListener)scope.ServiceProvider.GetService(_queueConfig.EventListenerType);
                             eventListener.Initialize();
                             await eventListener.Handle(eventObj);
                             transaction.Commit();

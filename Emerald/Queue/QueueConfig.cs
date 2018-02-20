@@ -5,22 +5,18 @@ namespace Emerald.Queue
 {
     public sealed class QueueConfig
     {
-        internal QueueConfig(string applicationName, string connectionString, long interval)
+        internal QueueConfig(string applicationName, string connectionString, long interval, Type eventListenerType)
         {
             ConnectionString = connectionString;
             Interval = interval;
+            EventListenerType = eventListenerType;
             QueueDbAccessManager = new QueueDbAccessManager(applicationName, connectionString);
         }
 
         internal string ConnectionString { get; }
-        internal Dictionary<Type, Type> EventListenerDictionary { get; } = new Dictionary<Type, Type>();
-        internal List<Type> EventListenerTypeList { get; } = new List<Type>();
+        internal Type EventListenerType { get; }
+        internal List<Type> EventTypeList { get; } = new List<Type>();
         internal long Interval { get; }
         internal QueueDbAccessManager QueueDbAccessManager { get; }
-
-        public void AddEventListener<T>() where T : EventListener
-        {
-            EventListenerTypeList.Add(typeof(T));
-        }
     }
 }
