@@ -28,7 +28,7 @@ namespace Emerald.AspNetCore.Common
 
         public void UseQueue<T>() where T : EventListener
         {
-            _emeraldSystemBuilder.UseQueue<T>(_environment.Queue.ConnectionString, _environment.Queue.Interval);
+            _emeraldSystemBuilder.UseQueue<T>(_environment.Queue.ConnectionString, _environment.Queue.Interval, _environment.Queue.ListenerEnabled);
         }
     }
 }
