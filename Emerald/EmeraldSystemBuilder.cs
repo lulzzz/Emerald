@@ -33,11 +33,11 @@ namespace Emerald
             _jobTypeList.Add(new Tuple<Type, string>(typeof(T), crontab));
             return this;
         }
-        public IEmeraldSystemBuilder UseQueue<T>(string connectionString, long interval) where T : EventListener
+        public IEmeraldSystemBuilder UseQueue<T>(string connectionString, long interval, bool listenerEnabled) where T : EventListener
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than 0.");
-            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, typeof(T));
+            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, typeof(T), listenerEnabled);
             return this;
         }
 
@@ -81,7 +81,7 @@ namespace Emerald
                 jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
             }
 
-            if (_queueConfig != null)
+            if (_queueConfig != null && _queueConfig.ListenerEnabled)
             {
                 _queueConfig.EventTypeList.AddRange(GetEventTypes(_queueConfig.EventListenerType, serviceScopeFactory));
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(_queueConfig, serviceScopeFactory, transactionScopeFactory));

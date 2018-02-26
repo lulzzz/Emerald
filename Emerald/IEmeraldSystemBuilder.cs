@@ -8,7 +8,7 @@ namespace Emerald
     {
         IEmeraldSystemBuilder AddCommandHandler<T>() where T : CommandHandler;
         IEmeraldSystemBuilder AddJob<T>(string cron) where T : class, IJob;
-        IEmeraldSystemBuilder UseQueue<T>(string connectionString, long interval) where T : EventListener;
+        IEmeraldSystemBuilder UseQueue<T>(string connectionString, long interval, bool listenerEnabled) where T : EventListener;
         EmeraldSystem Build();
     }
 }
