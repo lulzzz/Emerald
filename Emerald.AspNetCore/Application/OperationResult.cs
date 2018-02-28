@@ -8,6 +8,12 @@
             ErrorMessage = errorMessage;
         }
 
+        public bool IsSuccess => Type == OperationResultType.Success;
+        public bool IsNotFound => Type == OperationResultType.NotFound;
+        public bool IsCreated => Type == OperationResultType.Created;
+        public bool IsDeleted => Type == OperationResultType.Deleted;
+        public bool IsError => Type == OperationResultType.Error;
+
         public OperationResultType Type { get; }
         public string ErrorMessage { get; }
 
@@ -26,6 +32,9 @@
             ErrorMessage = errorMessage;
             Output = output;
         }
+
+        public bool IsSuccess => Type == OperationResultType.Success;
+        public bool IsError => Type == OperationResultType.Error;
 
         public OperationResultType Type { get; }
         public string ErrorMessage { get; }

@@ -9,6 +9,10 @@
             Output = output;
         }
 
+        public bool IsSuccess => Type == QueryResultType.Success;
+        public bool IsNotFound => Type == QueryResultType.NotFound;
+        public bool IsError => Type == QueryResultType.Error;
+
         public QueryResultType Type { get; }
         public string ErrorMessage { get; }
         public TOutput Output { get; }
