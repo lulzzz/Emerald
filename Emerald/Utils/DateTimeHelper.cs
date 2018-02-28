@@ -19,6 +19,26 @@ namespace Emerald.Utils
             return new DateTimeOffset(dateTime, TimeSpan.Zero).ToUnixTimeMilliseconds();
         }
 
+        /// <summary>Create date time based on utc date time using specific offset.</summary>
+        /// <param name="dateTime">Date time.</param>
+        /// <param name="offset">Offset.</param>
+        /// <returns>Date time.</returns>
+        public static DateTime FromUtcDateTime(DateTime dateTime, TimeSpan offset)
+        {
+            var localDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, dateTime.Second);
+            localDateTime.AddMilliseconds(dateTime.Millisecond);
+            return new DateTimeOffset(localDateTime, offset).DateTime;
+        }
+        /// <summary>Create date time based on utc date time using specific offset.</summary>
+        /// <param name="dateTime">Date time.</param>
+        /// <param name="offset">Offset in minutes.</param>
+        /// <returns>Date time.</returns>
+        public static DateTime FromUtcDateTime(DateTime dateTime, double offset)
+        {
+            var localDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, dateTime.Second);
+            localDateTime.AddMilliseconds(dateTime.Millisecond);
+            return new DateTimeOffset(localDateTime, TimeSpan.FromMinutes(offset)).DateTime;
+        }
         /// <summary>Convert date time with specific offset to utc date time.</summary>
         /// <param name="dateTime">Date time.</param>
         /// <param name="offset">Offset of current date time.</param>
@@ -29,7 +49,7 @@ namespace Emerald.Utils
             localDateTime.AddMilliseconds(dateTime.Millisecond);
             return new DateTimeOffset(localDateTime, offset).UtcDateTime;
         }
-        /// <summary>Convert date time with specific offset to utc date time.</summary>
+        /// <summary>Convert utc date time with specific offset to utc date time.</summary>
         /// <param name="dateTime">Date time.</param>
         /// <param name="offset">Offset of current date time in minutes.</param>
         /// <returns>Utc date time.</returns>
