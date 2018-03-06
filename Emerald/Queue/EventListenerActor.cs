@@ -37,12 +37,12 @@ namespace Emerald.Queue
             {
                 if (!_initialized)
                 {
-                    _queueConfig.QueueDbAccessManager.CreateQueueDbIfNeeded();
-                    _queueConfig.QueueDbAccessManager.RegisterSubscriberIfNeeded();
+                    await _queueConfig.QueueDbAccessManager.CreateQueueDbIfNeeded();
+                    await _queueConfig.QueueDbAccessManager.RegisterSubscriberIfNeeded();
                     _initialized = true;
                 }
 
-                var eventList = _queueConfig.QueueDbAccessManager.GetEvents().Where(e => _eventTypeDictionary.ContainsKey(e.Type)).ToList();
+                var eventList = (await _queueConfig.QueueDbAccessManager.GetEvents()).Where(e => _eventTypeDictionary.ContainsKey(e.Type)).ToList();
                 if (eventList.Count == 0) return ScheduleNextListenCommand;
                 logger.Info($"{eventList.Count} event(s) received.");
 
@@ -61,11 +61,13 @@ namespace Emerald.Queue
                             await eventListener.Handle(eventObj);
                             transaction.Commit();
                             logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
+                            await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
                         }
                         catch (Exception ex)
                         {
                             transaction.Rollback();
                             logger.Error(ex, $"Error on handling event '{@event.Id}:{@event.Type}'.");
+                            await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", ex.ToString());
                         }
                     }
                 }
