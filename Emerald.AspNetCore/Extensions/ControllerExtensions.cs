@@ -41,7 +41,7 @@ namespace Emerald.AspNetCore.Extensions
             {
                 case OperationResultType.Success: return new OkObjectResult(viewModelFactory(operationResult.Output));
                 case OperationResultType.Created: return new CreatedResult(location, viewModelFactory(operationResult.Output));
-                case OperationResultType.Deleted: return new NoContentResult();
+                case OperationResultType.Deleted: return operationResult.Output == null ? (IActionResult)new NoContentResult() : new OkObjectResult(viewModelFactory(operationResult.Output));
                 case OperationResultType.NotFound: return new NotFoundResult();
                 case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
                 default: throw new NotSupportedException();
