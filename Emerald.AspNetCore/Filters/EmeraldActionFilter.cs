@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http.Internal;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 
 namespace Emerald.AspNetCore.Filters
@@ -21,11 +19,6 @@ namespace Emerald.AspNetCore.Filters
         public void OnActionExecuting(ActionExecutingContext context)
         {
             context.HttpContext.Request.EnableRewind();
-
-            if (!context.ModelState.IsValid)
-            {
-                context.Result = new BadRequestObjectResult(string.Join(Environment.NewLine, context.ModelState.Values.SelectMany(i => i.Errors).Select(i => i.ErrorMessage)));
-            }
         }
 
         public void OnActionExecuted(ActionExecutedContext context)
