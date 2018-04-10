@@ -1,4 +1,4 @@
-﻿using Emerald.AspNetCore.Application;
+﻿using Emerald.Application;
 using Emerald.AspNetCore.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using System;
