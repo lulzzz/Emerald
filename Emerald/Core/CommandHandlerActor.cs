@@ -1,5 +1,6 @@
 ﻿using Akka.Actor;
 using Emerald.Abstractions;
+using Emerald.Application;
 using System;
 using System.Threading.Tasks;
 
@@ -33,7 +34,15 @@ namespace Emerald.Core
                 try
                 {
                     commandExecutionResult.Output = await commandHandler.Handle(command);
-                    transaction.Commit();
+
+                    if (commandExecutionResult.Output is IOperationResult operationResult && operationResult.IsError)
+                    {
+                        transaction.Rollback();
+                    }
+                    else
+                    {
+                        transaction.Commit();
+                    }
                 }
                 catch (Exception ex)
                 {

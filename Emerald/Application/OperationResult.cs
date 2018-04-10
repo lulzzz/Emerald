@@ -1,6 +1,6 @@
 ﻿namespace Emerald.Application
 {
-    public sealed class OperationResult
+    public sealed class OperationResult : IOperationResult
     {
         private OperationResult(OperationResultType type, string errorMessage)
         {
@@ -20,7 +20,7 @@
         public static OperationResult Error(string errorMessage) => new OperationResult(OperationResultType.Error, errorMessage);
     }
 
-    public sealed class OperationResult<TOutput>
+    public sealed class OperationResult<TOutput> : IOperationResult
     {
         private OperationResult(OperationResultType type, string errorMessage, TOutput output)
         {
@@ -49,5 +49,11 @@
         Deleted = 2,
         NotFound = 3,
         Error = 4
+    }
+
+    public interface IOperationResult
+    {
+        bool IsSuccess { get; }
+        bool IsError { get; }
     }
 }
