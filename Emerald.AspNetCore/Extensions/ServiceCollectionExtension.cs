@@ -14,9 +14,10 @@ namespace Emerald.AspNetCore.Extensions
             Action<EmeraldOptions> options) where TServiceScopeFactory : class, Abstractions.IServiceScopeFactory where TTransactionScopeFactory : class, ITransactionScopeFactory
         {
             var serviceProvider = services.BuildServiceProvider();
-            var environment = new EnvironmentConfigurationSection(serviceProvider.GetService<IConfiguration>());
-            var emeraldSystemBuilder = new EmeraldSystemBuilder<TServiceScopeFactory, TTransactionScopeFactory>(environment.ApplicationName, new Infrastructure.ServiceCollection(services));
-            options(new EmeraldOptions(emeraldSystemBuilder, environment));
+            var configuration = new ApplicationConfiguration(serviceProvider.GetService<IConfiguration>());
+            services.AddSingleton<IApplicationConfiguration>(configuration);
+            var emeraldSystemBuilder = new EmeraldSystemBuilder<TServiceScopeFactory, TTransactionScopeFactory>(configuration.Environment.ApplicationName, new Infrastructure.ServiceCollection(services));
+            options(new EmeraldOptions(emeraldSystemBuilder, configuration));
             Registry.EmeraldSystem = emeraldSystemBuilder.Build();
             return services;
         }

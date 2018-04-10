@@ -8,12 +8,12 @@ namespace Emerald.AspNetCore.Common
     public sealed class EmeraldOptions
     {
         private readonly IEmeraldSystemBuilder _emeraldSystemBuilder;
-        private readonly EnvironmentConfigurationSection _environment;
+        private readonly ApplicationConfiguration _configuration;
 
-        internal EmeraldOptions(IEmeraldSystemBuilder emeraldSystemBuilder, EnvironmentConfigurationSection environment)
+        internal EmeraldOptions(IEmeraldSystemBuilder emeraldSystemBuilder, ApplicationConfiguration configuration)
         {
             _emeraldSystemBuilder = emeraldSystemBuilder;
-            _environment = environment;
+            _configuration = configuration;
         }
 
         public void AddCommandHandler<T>() where T : CommandHandler
@@ -23,12 +23,15 @@ namespace Emerald.AspNetCore.Common
 
         public void AddJob<T>() where T : class, IJob
         {
-            _emeraldSystemBuilder.AddJob<T>(_environment.Jobs[typeof(T).Name]);
+            _emeraldSystemBuilder.AddJob<T>(_configuration.Environment.Jobs[typeof(T).Name]);
         }
 
         public void UseQueue<T>() where T : EventListener
         {
-            _emeraldSystemBuilder.UseQueue<T>(_environment.Queue.ConnectionString, _environment.Queue.Interval, _environment.Queue.ListenerEnabled);
+            var connectionString = _configuration.Environment.Queue.ConnectionString;
+            var interval = _configuration.Environment.Queue.Interval;
+            var listenerEnabled = _configuration.Environment.Queue.ListenerEnabled;
+            _emeraldSystemBuilder.UseQueue<T>(connectionString, interval, listenerEnabled);
         }
     }
 }
