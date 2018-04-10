@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Emerald.Queue
@@ -16,7 +17,7 @@ namespace Emerald.Queue
         private const string CreateLogTableQuery = "IF OBJECT_ID('Logs') IS NULL CREATE TABLE [dbo].[Logs] ([EventId] INT NOT NULL, [SubscriberName] NVARCHAR(64) NOT NULL, [ProcessedAt] DATETIME2(7) NOT NULL, [Result] NVARCHAR(8) NOT NULL, [Message] NVARCHAR(1024) NOT NULL, PRIMARY KEY ([EventId], [SubscriberName]))";
         private const string RegisterSubscriberQuery = "IF (SELECT COUNT(*) FROM [dbo].[Subscribers] WHERE [Name] = '{0}') = 0 INSERT INTO [dbo].[Subscribers] ([Name], [LastReadAt], [LastReadEventId]) VALUES ('{0}', GETUTCDATE(), (SELECT COALESCE(MAX([Id]), 0) FROM [dbo].[Events]))";
         private const string LastEventIdQuery = "SELECT [LastReadEventId] FROM [dbo].[Subscribers] WHERE [Name] = '{0}'";
-        private const string EventListQuery = "SELECT [Id], [Type], [Body], [Source], [PublishedAt] FROM [dbo].[Events] WHERE [Id] > {0} ORDER BY [Id]";
+        private const string EventListQuery = "SELECT [Id], [Type], [Body], [Source], [PublishedAt] FROM [dbo].[Events] WHERE [Id] > {0} ORDER BY [PublishedAt]";
         private const string UpdateLastEventIdQuery = "UPDATE [dbo].[Subscribers] SET [LastReadEventId] = {0} WHERE [Name] = '{1}'";
         private const string UpdateLastReadAtQuery = "UPDATE [dbo].[Subscribers] SET [LastReadAt] = '{0}' WHERE [Name] = '{1}'";
         private const string InsertEventQuery = "INSERT INTO [dbo].[Events] ([Type], [Body], [Source], [PublishedAt]) VALUES ('{0}', '{1}', '{2}', '{3}')";
@@ -89,11 +90,9 @@ namespace Emerald.Queue
 
                     while (await eventListReader.ReadAsync())
                     {
-                        lastEventId = eventListReader.GetInt32(0);
-
                         eventList.Add(new Event
                         {
-                            Id = lastEventId,
+                            Id = eventListReader.GetInt32(0),
                             Type = eventListReader.GetString(1),
                             Body = eventListReader.GetString(2),
                             Source = eventListReader.GetString(3),
@@ -103,6 +102,7 @@ namespace Emerald.Queue
 
                     if (eventList.Count > 0)
                     {
+                        lastEventId = eventList.Max(i => i.Id);
                         var updateLastEventIdCommand = new SqlCommand(string.Format(UpdateLastEventIdQuery, lastEventId, _applicationName), connection, transaction);
                         await updateLastEventIdCommand.ExecuteNonQueryAsync();
                     }
