@@ -1,4 +1,4 @@
-﻿namespace Emerald.AspNetCore.Persistence
+﻿namespace Emerald.Persistence
 {
     public enum QueryResultType
     {
