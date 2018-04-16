@@ -1,5 +1,5 @@
 ﻿using Emerald.Application;
-using Emerald.AspNetCore.Persistence;
+using Emerald.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using System;
 
