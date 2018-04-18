@@ -23,6 +23,10 @@ namespace Emerald.Application
         {
             return Uri.TryCreate(str, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
+        public static bool IsNotLink(string str)
+        {
+            return !IsLink(str);
+        }
         public static bool IsNullOrEmpty<T>(IEnumerable<T> collection)
         {
             return collection == null || !collection.Any();
