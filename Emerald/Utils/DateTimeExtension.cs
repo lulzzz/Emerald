@@ -8,6 +8,10 @@ namespace Emerald.Utils
         {
             return new DateTimeOffset(dateTime, TimeSpan.Zero).ToUnixTimeMilliseconds();
         }
+        public static long ToUnixTimeSeconds(this DateTime dateTime)
+        {
+            return new DateTimeOffset(dateTime, TimeSpan.Zero).ToUnixTimeSeconds();
+        }
         public static DateTime[] GetWeekDates(this DateTime dateTime, DayOfWeek startDayOfWeek)
         {
             var weekDateArray = new DateTime[7];

@@ -6,18 +6,22 @@ namespace Emerald.Application
 {
     public static class ValidationHelper
     {
-        public static bool IsNull(object obj)
-        {
-            return obj == null;
-        }
         public static bool IsNull<T>(T? value, out T result) where T : struct
         {
             result = value ?? default(T);
             return value == null;
         }
+        public static bool IsNotNull<T>(T? value, out T result) where T : struct
+        {
+            return !IsNull(value, out result);
+        }
         public static bool IsNullOrEmptyOrWhiteSpace(string str)
         {
             return string.IsNullOrWhiteSpace(str) || str == string.Empty;
+        }
+        public static bool IsNotNullOrEmptyOrWhiteSpace(string str)
+        {
+            return !IsNullOrEmptyOrWhiteSpace(str);
         }
         public static bool IsLink(string str)
         {
@@ -31,13 +35,17 @@ namespace Emerald.Application
         {
             return collection == null || !collection.Any();
         }
-        public static bool IsTrue(bool value)
+        public static bool IsNotNullOrEmpty<T>(IEnumerable<T> collection)
         {
-            return value;
+            return !IsNullOrEmpty(collection);
         }
-        public static bool IsFalse(bool value)
+        public static bool IsDefined<T>(T value) where T : struct
         {
-            return value == false;
+            return Enum.IsDefined(typeof(T), value);
+        }
+        public static bool IsNotDefined<T>(T value) where T : struct
+        {
+            return !IsDefined(value);
         }
     }
 }
