@@ -20,6 +20,5 @@
         public static QueryResult<TOutput> Success(TOutput output) => new QueryResult<TOutput>(QueryResultType.Success, null, output);
         public static QueryResult<TOutput> NotFound() => new QueryResult<TOutput>(QueryResultType.NotFound, null, default(TOutput));
         public static QueryResult<TOutput> Error(string errorMessage) => new QueryResult<TOutput>(QueryResultType.Error, errorMessage, default(TOutput));
-        public static QueryResult<TOutput> FromOutput(TOutput output) => output == null ? NotFound() : Success(output);
     }
 }
