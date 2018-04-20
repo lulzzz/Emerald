@@ -45,6 +45,8 @@ namespace Emerald.AspNetCore.Filters
                 }
             }
 
+            
+
             var response = $"{context.HttpContext.Response.StatusCode}";
 
             if (context.Exception != null && !context.ExceptionHandled)
