@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.Elasticsearch;
 using System;
 using System.IO;
 
@@ -40,7 +41,7 @@ namespace Emerald.AspNetCore
             var loggerConfiguration = new LoggerConfiguration().MinimumLevel.Information().Enrich.FromLogContext();
 
             if (logging.Console.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Console();
-            if (logging.ElasticSearch.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Elasticsearch(logging.ElasticSearch.NodeUri, logging.ElasticSearch.IndexFormat);
+            if (logging.ElasticSearch.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(logging.ElasticSearch.NodeUri)) { IndexFormat = logging.ElasticSearch.IndexFormat });
 
             if (!string.Equals(environmentName, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase))
             {
