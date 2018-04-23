@@ -19,6 +19,11 @@ namespace Emerald.AspNetCore.Persistence
         {
         }
 
-        public IQueryable<TEntity> Source => DbContext.Set<TEntity>();
+        public IQueryable<TEntity> Source => ConfigureSource(DbContext.Set<TEntity>());
+
+        protected virtual IQueryable<TEntity> ConfigureSource(IQueryable<TEntity> source)
+        {
+            return source;
+        }
     }
 }
