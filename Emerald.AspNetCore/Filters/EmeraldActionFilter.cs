@@ -2,16 +2,19 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 
 namespace Emerald.AspNetCore.Filters
 {
     internal sealed class EmeraldActionFilter : IActionFilter
     {
         private readonly ILogger<EmeraldActionFilter> _logger;
+        private DateTime _startedAt;
 
         public EmeraldActionFilter(ILogger<EmeraldActionFilter> logger)
         {
@@ -20,6 +23,8 @@ namespace Emerald.AspNetCore.Filters
 
         public void OnActionExecuting(ActionExecutingContext context)
         {
+            _startedAt = DateTime.UtcNow;
+
             context.HttpContext.Request.EnableRewind();
 
             if (!context.ModelState.IsValid)
@@ -27,36 +32,65 @@ namespace Emerald.AspNetCore.Filters
                 context.Result = new BadRequestObjectResult(string.Join(Environment.NewLine, context.ModelState.Values.SelectMany(i => i.Errors).Select(i => i.ErrorMessage)));
             }
         }
-
         public void OnActionExecuted(ActionExecutedContext context)
         {
-            var request = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}";
-            var requestContent = string.Empty;
+            var requestInfo = CreateRequestInfo(context);
+            var responseInfo = CreateResponseInfo(context);
+            var isError = context.Exception != null && !context.ExceptionHandled;
 
-            if (context.HttpContext.Request.Method != HttpMethod.Get.ToString())
+            var messageBuilder = new StringBuilder();
+            messageBuilder.AppendLine(isError ? "New request handled with error." : "New request handled.");
+            messageBuilder.AppendLine(requestInfo);
+            messageBuilder.AppendLine(responseInfo);
+
+            var message = messageBuilder.ToString();
+
+            if (isError)
+            {
+                _logger.LogError(context.Exception, message);
+            }
+            else
+            {
+                _logger.LogInformation(message);
+            }
+        }
+
+        private string CreateRequestInfo(ActionExecutedContext context)
+        {
+            var info = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}{context.HttpContext.Request.QueryString}";
+
+            if (context.HttpContext.Request.Method != HttpMethod.Get.ToString() && (context.HttpContext.Request.ContentType?.Contains("application/json") ?? false))
             {
                 try
                 {
                     context.HttpContext.Request.Body.Position = 0;
-                    requestContent = $"{context.HttpContext.Request.ContentType} {new StreamReader(context.HttpContext.Request.Body).ReadToEnd()}";
+                    info += $" {new StreamReader(context.HttpContext.Request.Body).ReadToEnd()}";
                 }
                 catch (NotSupportedException)
                 {
                 }
             }
 
-            
+            return info;
+        }
+        private string CreateResponseInfo(ActionExecutedContext context)
+        {
+            var info = string.Empty;
 
-            var response = $"{context.HttpContext.Response.StatusCode}";
+            if (context.Result is ObjectResult objectResult)
+            {
+                info += $"{objectResult.StatusCode}";
+                if (objectResult.StatusCode < 200 || objectResult.StatusCode >= 300 && objectResult.Value != null) info += $", {JsonConvert.SerializeObject(objectResult.Value)}";
+            }
+            else if (context.Result is StatusCodeResult statusCodeResult)
+            {
+                info += $"{statusCodeResult.StatusCode}";
+            }
 
-            if (context.Exception != null && !context.ExceptionHandled)
-            {
-                _logger.LogError(context.Exception, $"New request handled with error. Request: {request}, RequestContent: {requestContent}, Response: {response}");
-            }
-            else
-            {
-                _logger.LogInformation($"New request handled. Request: {request}, RequestContent: {requestContent}, Response: {response}");
-            }
+            info += $"{(info == string.Empty ? string.Empty : ", ")}{(DateTime.UtcNow - _startedAt).TotalMilliseconds}ms";
+            info = "Response: " + info;
+
+            return info;
         }
     }
 }
