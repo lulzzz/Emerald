@@ -33,18 +33,22 @@ namespace Emerald.Queue
         {
             var connectionStringBuilder = new SqlConnectionStringBuilder(_connectionString);
             var dbName = connectionStringBuilder.InitialCatalog;
-            var query = string.Format(CreateDbQuery, dbName);
-
             connectionStringBuilder.InitialCatalog = "master";
+            var createDbQuery = string.Format(CreateDbQuery, dbName);
 
             using (var connection = new SqlConnection(connectionStringBuilder.ConnectionString))
-            using (var createDbCommand = new SqlCommand(query, connection))
+            using (var createDbCommand = new SqlCommand(createDbQuery, connection))
+            {
+                await connection.OpenAsync();
+                await createDbCommand.ExecuteNonQueryAsync();
+            }
+
+            using (var connection = new SqlConnection(_connectionString))
             using (var createEventTableCommand = new SqlCommand(CreateEventTableQuery, connection))
             using (var createSubscriberTableCommand = new SqlCommand(CreateSubscriberTableQuery, connection))
             using (var createLogTableCommand = new SqlCommand(CreateLogTableQuery, connection))
             {
                 await connection.OpenAsync();
-                await createDbCommand.ExecuteNonQueryAsync();
                 await createEventTableCommand.ExecuteNonQueryAsync();
                 await createSubscriberTableCommand.ExecuteNonQueryAsync();
                 await createLogTableCommand.ExecuteNonQueryAsync();
