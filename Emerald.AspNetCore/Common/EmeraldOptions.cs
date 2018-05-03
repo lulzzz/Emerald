@@ -2,6 +2,7 @@
 using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
+using System;
 
 namespace Emerald.AspNetCore.Common
 {
@@ -26,12 +27,12 @@ namespace Emerald.AspNetCore.Common
             _emeraldSystemBuilder.AddJob<T>(_configuration.Environment.Jobs[typeof(T).Name]);
         }
 
-        public void UseQueue<T>() where T : EventListener
+        public void UseQueue(Action<QueueListenerConfig> configureQueueListener)
         {
             var connectionString = _configuration.Environment.Queue.ConnectionString;
             var interval = _configuration.Environment.Queue.Interval;
-            var listenerEnabled = _configuration.Environment.Queue.ListenerEnabled;
-            _emeraldSystemBuilder.UseQueue<T>(connectionString, interval, listenerEnabled);
+            var listen = _configuration.Environment.Queue.Listen;
+            _emeraldSystemBuilder.UseQueue(connectionString, interval, listen, configureQueueListener);
         }
     }
 }
