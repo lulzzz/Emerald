@@ -42,12 +42,18 @@ namespace Emerald.Queue
                     _initialized = true;
                 }
 
-                var eventList = (await _queueConfig.QueueDbAccessManager.GetEvents()).Where(e => _eventTypeDictionary.ContainsKey(e.Type)).ToList();
-                if (eventList.Count == 0) return ScheduleNextListenCommand;
-                logger.Info($"{eventList.Count} event(s) received.");
+                var eventArray = await _queueConfig.QueueDbAccessManager.GetEvents();
+                if (eventArray.Length == 0) return ScheduleNextListenCommand;
+                logger.Info($"{eventArray.Length} event(s) received.");
 
-                foreach (var @event in eventList)
+                foreach (var @event in eventArray)
                 {
+                    if (!_eventTypeDictionary.ContainsKey(@event.Type))
+                    {
+                        await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handler not registered.");
+                        continue;
+                    }
+
                     using (var scope = _serviceScopeFactory.CreateScope())
                     using (var transaction = _transactionScopeFactory.Create(scope))
                     {

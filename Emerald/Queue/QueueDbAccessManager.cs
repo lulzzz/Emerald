@@ -74,7 +74,7 @@ namespace Emerald.Queue
                 await command.ExecuteNonQueryAsync();
             }
         }
-        public async Task<IEnumerable<Event>> GetEvents()
+        public async Task<Event[]> GetEvents()
         {
             using (var connection = new SqlConnection(_connectionString))
             {
@@ -116,7 +116,7 @@ namespace Emerald.Queue
 
                     transaction.Commit();
 
-                    return eventList;
+                    return eventList.ToArray();
                 }
                 catch
                 {
