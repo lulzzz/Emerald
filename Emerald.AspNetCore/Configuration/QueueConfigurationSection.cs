@@ -8,11 +8,11 @@ namespace Emerald.AspNetCore.Configuration
         {
             ConnectionString = configuration.GetSection("environment:queue").GetValue<string>("connectionString");
             Interval = configuration.GetSection("environment:queue").GetValue<long>("interval");
-            ListenerEnabled = configuration.GetSection("environment:queue").GetValue<bool>("listenerEnabled");
+            Listen = configuration.GetSection("environment:queue").GetValue<bool>("listen");
         }
 
         public string ConnectionString { get; }
         public long Interval { get; }
-        public bool ListenerEnabled { get; }
+        public bool Listen { get; }
     }
 }

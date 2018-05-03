@@ -1,6 +1,7 @@
 ﻿using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
+using System;
 
 namespace Emerald
 {
@@ -8,7 +9,7 @@ namespace Emerald
     {
         IEmeraldSystemBuilder AddCommandHandler<T>() where T : CommandHandler;
         IEmeraldSystemBuilder AddJob<T>(string cron) where T : class, IJob;
-        IEmeraldSystemBuilder UseQueue<T>(string connectionString, long interval, bool listenerEnabled) where T : EventListener;
+        IEmeraldSystemBuilder UseQueue(string connectionString, long interval, bool listen, Action<QueueListenerConfig> configureQueueListener);
         EmeraldSystem Build();
     }
 }

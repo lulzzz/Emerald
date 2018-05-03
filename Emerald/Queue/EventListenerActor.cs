@@ -21,7 +21,7 @@ namespace Emerald.Queue
 
         public EventListenerActor(QueueConfig queueConfig, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
-            _eventTypeDictionary = queueConfig.EventTypeList.ToDictionary(i => i.Name, i => i);
+            _eventTypeDictionary = queueConfig.EventTypes.ToDictionary(i => i.Key.Name, i => i.Key);
             _queueConfig = queueConfig;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
@@ -61,10 +61,16 @@ namespace Emerald.Queue
 
                         try
                         {
-                            var eventObj = JsonConvert.DeserializeObject(@event.Body, _eventTypeDictionary[@event.Type]);
-                            var eventListener = (EventListener)scope.ServiceProvider.GetService(_queueConfig.EventListenerType);
-                            eventListener.Initialize();
-                            await eventListener.Handle(eventObj);
+                            var eventType = _eventTypeDictionary[@event.Type];
+                            var eventObj = JsonConvert.DeserializeObject(@event.Body, eventType);
+
+                            foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
+                            {
+                                var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
+                                eventListener.Initialize();
+                                await eventListener.Handle(eventObj);
+                            }
+
                             transaction.Commit();
                             logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
                             await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");

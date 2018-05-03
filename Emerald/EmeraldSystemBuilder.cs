@@ -1,5 +1,6 @@
 ﻿using Akka.Actor;
 using Akka.Routing;
+using Akka.Util.Internal;
 using Emerald.Abstractions;
 using Emerald.Core;
 using Emerald.Jobs;
@@ -33,11 +34,13 @@ namespace Emerald
             _jobTypeList.Add(new Tuple<Type, string>(typeof(T), crontab));
             return this;
         }
-        public IEmeraldSystemBuilder UseQueue<T>(string connectionString, long interval, bool listenerEnabled) where T : EventListener
+        public IEmeraldSystemBuilder UseQueue(string connectionString, long interval, bool listen, Action<QueueListenerConfig> configureQueueListener)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than 0.");
-            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, typeof(T), listenerEnabled);
+            var queueListenerConfig = new QueueListenerConfig();
+            configureQueueListener(queueListenerConfig);
+            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, queueListenerConfig.EventListenerTypes, listen);
             return this;
         }
 
@@ -58,7 +61,7 @@ namespace Emerald
             _serviceCollection.AddScoped<ITransactionScopeFactory, TTransactionScopeFactory>();
             _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
             _jobTypeList.ForEach(j => _serviceCollection.AddScoped(j.Item1));
-            if (_queueConfig != null) _serviceCollection.AddScoped(_queueConfig.EventListenerType);
+            _queueConfig?.EventListenerTypes.ForEach(t => _serviceCollection.AddScoped(t));
             _serviceCollection.AddSingleton(new CommandExecutor(actorSystem, commandHandlerActorDictionary));
             _serviceCollection.AddSingleton(new EventPublisher(_queueConfig?.QueueDbAccessManager));
 
@@ -81,9 +84,9 @@ namespace Emerald
                 jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
             }
 
-            if (_queueConfig != null && _queueConfig.ListenerEnabled)
+            if (_queueConfig != null && _queueConfig.Listen)
             {
-                _queueConfig.EventTypeList.AddRange(GetEventTypes(_queueConfig.EventListenerType, serviceScopeFactory));
+                _queueConfig.EventTypes = GetEventTypes(_queueConfig.EventListenerTypes, serviceScopeFactory);
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(_queueConfig, serviceScopeFactory, transactionScopeFactory));
                 var eventListenerActor = actorSystem.ActorOf(eventListenerActorProps);
                 eventListenerActor.Tell(EventListenerActor.ScheduleNextListenCommand);
@@ -100,14 +103,32 @@ namespace Emerald
                 return commandHandler.GetCommandTypes();
             }
         }
-        private List<Type> GetEventTypes(Type eventListenerType, IServiceScopeFactory serviceScopeFactory)
+        private Dictionary<Type, List<Type>> GetEventTypes(Type[] eventListenerTypes, IServiceScopeFactory serviceScopeFactory)
         {
+            var dictionary = new Dictionary<Type, List<Type>>();
+
             using (var scope = serviceScopeFactory.CreateScope())
             {
-                var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
-                eventListener.Initialize();
-                return eventListener.GetEventTypes();
+                foreach (var eventListenerType in eventListenerTypes)
+                {
+                    var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
+                    eventListener.Initialize();
+
+                    foreach (var eventType in eventListener.GetEventTypes())
+                    {
+                        if (dictionary.ContainsKey(eventType))
+                        {
+                            dictionary[eventType].Add(eventListenerType);
+                        }
+                        else
+                        {
+                            dictionary.Add(eventType, new List<Type> { eventListenerType });
+                        }
+                    }
+                }
             }
+
+            return dictionary;
         }
     }
 }
