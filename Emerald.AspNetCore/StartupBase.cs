@@ -15,23 +15,24 @@ namespace Emerald.AspNetCore
         protected StartupBase(IConfiguration configuration)
         {
             Configuration = configuration;
-            Environment = new EnvironmentConfigurationSection(configuration);
+            ApplicationConfiguration = new ApplicationConfiguration(configuration);
         }
 
         protected IConfiguration Configuration { get; }
-        protected EnvironmentConfigurationSection Environment { get; }
+        protected IApplicationConfiguration ApplicationConfiguration { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddDbContext<TDbContext>(opt => opt.UseSqlServer(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString));
             ConfigureDependencies(services);
-            services.AddEmerald<TDbContext, ServiceScopeFactory, TransactionScopeFactory<TDbContext>>(Configuration, ConfigureEmerald);
+            services.AddEmerald<ServiceScopeFactory, TransactionScopeFactory<TDbContext>>(Configuration, ConfigureEmerald);
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             app.UseEmerald();
-            env.ApplicationName = Environment.ApplicationName;
-            env.EnvironmentName = Environment.Name;
+            env.ApplicationName = ApplicationConfiguration.Environment.ApplicationName;
+            env.EnvironmentName = ApplicationConfiguration.Environment.Name;
         }
 
         protected abstract void ConfigureDependencies(IServiceCollection serviceCollection);

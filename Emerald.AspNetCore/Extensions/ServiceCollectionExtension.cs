@@ -3,7 +3,6 @@ using Emerald.AspNetCore.Common;
 using Emerald.AspNetCore.Configuration;
 using Emerald.AspNetCore.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -16,11 +15,10 @@ namespace Emerald.AspNetCore.Extensions
 {
     public static class ServiceCollectionExtension
     {
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddEmerald<TDbContext, TServiceScopeFactory, TTransactionScopeFactory>(
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddEmerald<TServiceScopeFactory, TTransactionScopeFactory>(
             this Microsoft.Extensions.DependencyInjection.IServiceCollection services,
             IConfiguration configuration,
             Action<EmeraldOptions> options)
-                where TDbContext : DbContext
                 where TServiceScopeFactory : class, Abstractions.IServiceScopeFactory
                 where TTransactionScopeFactory : class, ITransactionScopeFactory
         {
@@ -35,8 +33,6 @@ namespace Emerald.AspNetCore.Extensions
 
             Registry.EmeraldOptions = emeraldOptions;
             Registry.EmeraldSystem = emeraldSystemBuilder.Build();
-
-            services.AddDbContext<TDbContext>(opt => opt.UseSqlServer(applicationConfiguration.Environment.ApplicationDb.ConnectionString));
 
             if (emeraldOptions.AuthenticationEnabled)
             {
