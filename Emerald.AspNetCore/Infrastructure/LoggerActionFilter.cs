@@ -9,14 +9,14 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 
-namespace Emerald.AspNetCore.Filters
+namespace Emerald.AspNetCore.Infrastructure
 {
-    internal sealed class EmeraldActionFilter : IActionFilter
+    internal sealed class LoggerActionFilter : IActionFilter
     {
-        private readonly ILogger<EmeraldActionFilter> _logger;
+        private readonly ILogger<LoggerActionFilter> _logger;
         private DateTime _startedAt;
 
-        public EmeraldActionFilter(ILogger<EmeraldActionFilter> logger)
+        public LoggerActionFilter(ILogger<LoggerActionFilter> logger)
         {
             _logger = logger;
         }
@@ -61,15 +61,11 @@ namespace Emerald.AspNetCore.Filters
 
             if (context.HttpContext.Request.Method != HttpMethod.Get.ToString() && (context.HttpContext.Request.ContentType?.Contains("application/json") ?? false))
             {
-                try
-                {
-                    context.HttpContext.Request.Body.Position = 0;
-                    info += $" {new StreamReader(context.HttpContext.Request.Body).ReadToEnd()}";
-                }
-                catch (NotSupportedException)
-                {
-                }
+                context.HttpContext.Request.Body.Position = 0;
+                info += $" {new StreamReader(context.HttpContext.Request.Body).ReadToEnd()}";
             }
+
+            info = "Request: " + info;
 
             return info;
         }
