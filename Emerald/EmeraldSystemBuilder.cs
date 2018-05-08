@@ -24,24 +24,20 @@ namespace Emerald
             _serviceCollection = serviceCollection ?? throw new ArgumentNullException(nameof(serviceCollection));
         }
 
-        public IEmeraldSystemBuilder AddCommandHandler<T>() where T : CommandHandler
+        public void AddCommandHandler<T>() where T : CommandHandler
         {
             _commandHandlerTypeList.Add(typeof(T));
-            return this;
         }
-        public IEmeraldSystemBuilder AddJob<T>(string crontab) where T : class, IJob
+        public void AddJob<T>(string crontab) where T : class, IJob
         {
             _jobTypeList.Add(new Tuple<Type, string>(typeof(T), crontab));
-            return this;
         }
-        public IEmeraldSystemBuilder UseQueue(string connectionString, long interval, bool listen, Action<QueueListenerConfig> configureQueueListener)
+        public QueueConfig UseQueue(string connectionString, long interval, bool listen)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
             if (interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than 0.");
-            var queueListenerConfig = new QueueListenerConfig();
-            configureQueueListener(queueListenerConfig);
-            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, queueListenerConfig.EventListenerTypes, listen);
-            return this;
+            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, listen);
+            return _queueConfig;
         }
 
         public EmeraldSystem Build()
@@ -84,7 +80,7 @@ namespace Emerald
                 jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
             }
 
-            if (_queueConfig != null && _queueConfig.Listen)
+            if (_queueConfig != null && _queueConfig.Listen && _queueConfig.EventListenerTypes.Length > 0)
             {
                 _queueConfig.EventTypes = GetEventTypes(_queueConfig.EventListenerTypes, serviceScopeFactory);
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(_queueConfig, serviceScopeFactory, transactionScopeFactory));
