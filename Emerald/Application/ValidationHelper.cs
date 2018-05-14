@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Emerald.Application
 {
@@ -46,6 +48,58 @@ namespace Emerald.Application
         public static bool IsNotDefined<T>(T value) where T : struct
         {
             return !IsDefined(value);
+        }
+        public static bool IsEmail(string str)
+        {
+            if (IsNullOrEmptyOrWhiteSpace(str)) return false;
+            if (str.Length > 64) return false;
+
+            var invalid = true;
+
+            string MatchEvaluator(Match match)
+            {
+                var idnMapping = new IdnMapping();
+                var domainName = match.Groups[2].Value;
+
+                try
+                {
+                    domainName = idnMapping.GetAscii(domainName);
+                }
+                catch (ArgumentException)
+                {
+                    invalid = true;
+                }
+
+                return match.Groups[1].Value + domainName;
+            }
+
+            try
+            {
+                str = Regex.Replace(str, @"(@)(.+)$", MatchEvaluator, RegexOptions.None, TimeSpan.FromMilliseconds(200));
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                return false;
+            }
+
+            if (invalid) return false;
+
+            try
+            {
+                const string pattern =
+                    @"^(?("")("".+?(?<!\\)""@)|(([0-9a-z]((\.(?!\.))|[-!#\$%&'\*\+/=\?\^`\{\}\|~\w])*)(?<=[0-9a-z])@))" +
+                    @"(?(\[)(\[(\d{1,3}\.){3}\d{1,3}\])|(([0-9a-z][-0-9a-z]*[0-9a-z]*\.)+[a-z0-9][\-a-z0-9]{0,22}[a-z0-9]))$";
+
+                return Regex.IsMatch(str, pattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(250));
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                return false;
+            }
+        }
+        public static bool IsNotEmail(string str)
+        {
+            return !IsEmail(str);
         }
     }
 }
