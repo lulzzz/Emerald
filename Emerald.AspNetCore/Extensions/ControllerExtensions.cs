@@ -54,13 +54,29 @@ namespace Emerald.AspNetCore.Extensions
         }
         public static IActionResult QueryResult<TResult, TViewModel>(this Controller controller, QueryResult<TResult> queryResult, Func<TResult, TViewModel> viewModelFactory)
         {
-            switch (queryResult.Type)
+            if (queryResult.Type == QueryResultType.Success)
             {
-                case QueryResultType.Success: return new OkObjectResult(queryResult.Output == null ? (object)null : viewModelFactory(queryResult.Output));
-                case QueryResultType.NotFound: return new NotFoundResult();
-                case QueryResultType.Error: return new BadRequestObjectResult(queryResult.ErrorMessage);
-                default: throw new NotSupportedException();
+                return new OkObjectResult(queryResult.Output == null ? (object)null : viewModelFactory(queryResult.Output));
             }
+
+            if (queryResult.Type == QueryResultType.NotFound)
+            {
+                return new NotFoundResult();
+            }
+
+            if (queryResult.Type == QueryResultType.Error)
+            {
+                return new BadRequestObjectResult(queryResult.ErrorMessage);
+            }
+
+            var fileOutput = queryResult.Output as QueryResultFileOutput;
+
+            if (queryResult.Type == QueryResultType.File && fileOutput != null)
+            {
+                return new FileContentResult(fileOutput.Content, fileOutput.ContentType) { FileDownloadName = fileOutput.FileName };
+            }
+
+            throw new NotSupportedException();
         }
     }
 }
