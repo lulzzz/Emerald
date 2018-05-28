@@ -19,6 +19,8 @@
         public static OperationResult Deleted() => new OperationResult(OperationResultType.Deleted, null);
         public static OperationResult Error(string errorMessage) => new OperationResult(OperationResultType.Error, errorMessage);
         public static OperationResult PaymentRequired() => new OperationResult(OperationResultType.PaymentRequired, null);
+        public static OperationResult Forbidden() => new OperationResult(OperationResultType.Forbidden, null);
+        public static OperationResult Unauthorized() => new OperationResult(OperationResultType.Unauthorized, null);
     }
 
     public sealed class OperationResult<TOutput> : IOperationResult
@@ -42,6 +44,8 @@
         public static OperationResult<TOutput> NotFound() => new OperationResult<TOutput>(OperationResultType.NotFound, null, default(TOutput));
         public static OperationResult<TOutput> Error(string errorMessage) => new OperationResult<TOutput>(OperationResultType.Error, errorMessage, default(TOutput));
         public static OperationResult<TOutput> PaymentRequired(TOutput output) => new OperationResult<TOutput>(OperationResultType.PaymentRequired, null, output);
+        public static OperationResult<TOutput> Forbidden(TOutput output) => new OperationResult<TOutput>(OperationResultType.Forbidden, null, output);
+        public static OperationResult<TOutput> Unauthorized(TOutput output) => new OperationResult<TOutput>(OperationResultType.Unauthorized, null, output);
     }
 
     public enum OperationResultType
@@ -51,7 +55,9 @@
         Deleted = 2,
         NotFound = 3,
         Error = 4,
-        PaymentRequired = 5
+        PaymentRequired = 5,
+        Forbidden = 6,
+        Unauthorized = 7
     }
 
     public interface IOperationResult
