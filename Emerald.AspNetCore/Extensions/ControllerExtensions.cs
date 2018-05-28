@@ -22,8 +22,8 @@ namespace Emerald.AspNetCore.Extensions
                 case OperationResultType.NotFound: return new NotFoundResult();
                 case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
                 case OperationResultType.PaymentRequired: return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
-                case OperationResultType.Forbidden: return new ForbidResult();
-                case OperationResultType.Unauthorized: return new UnauthorizedResult();
+                case OperationResultType.Forbidden: return new StatusCodeResult(StatusCodes.Status403Forbidden);
+                case OperationResultType.Unauthorized: return new StatusCodeResult(StatusCodes.Status401Unauthorized);
                 default: throw new NotSupportedException();
             }
         }
@@ -49,8 +49,8 @@ namespace Emerald.AspNetCore.Extensions
                 case OperationResultType.NotFound: return new NotFoundResult();
                 case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
                 case OperationResultType.PaymentRequired: return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
-                case OperationResultType.Forbidden: return new ForbidResult();
-                case OperationResultType.Unauthorized: return new UnauthorizedResult();
+                case OperationResultType.Forbidden: return new StatusCodeResult(StatusCodes.Status403Forbidden);
+                case OperationResultType.Unauthorized: return new StatusCodeResult(StatusCodes.Status401Unauthorized);
                 default: throw new NotSupportedException();
             }
         }
