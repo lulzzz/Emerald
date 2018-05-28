@@ -1,5 +1,6 @@
 ﻿using Emerald.Application;
 using Emerald.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 
@@ -20,6 +21,9 @@ namespace Emerald.AspNetCore.Extensions
                 case OperationResultType.Deleted: return new NoContentResult();
                 case OperationResultType.NotFound: return new NotFoundResult();
                 case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
+                case OperationResultType.PaymentRequired: return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
+                case OperationResultType.Forbidden: return new ForbidResult();
+                case OperationResultType.Unauthorized: return new UnauthorizedResult();
                 default: throw new NotSupportedException();
             }
         }
@@ -44,6 +48,9 @@ namespace Emerald.AspNetCore.Extensions
                 case OperationResultType.Deleted: return operationResult.Output == null ? (IActionResult)new NoContentResult() : new OkObjectResult(viewModelFactory(operationResult.Output));
                 case OperationResultType.NotFound: return new NotFoundResult();
                 case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
+                case OperationResultType.PaymentRequired: return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
+                case OperationResultType.Forbidden: return new ForbidResult();
+                case OperationResultType.Unauthorized: return new UnauthorizedResult();
                 default: throw new NotSupportedException();
             }
         }
