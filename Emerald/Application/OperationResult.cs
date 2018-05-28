@@ -43,9 +43,9 @@
         public static OperationResult<TOutput> Deleted(TOutput output) => new OperationResult<TOutput>(OperationResultType.Deleted, null, output);
         public static OperationResult<TOutput> NotFound() => new OperationResult<TOutput>(OperationResultType.NotFound, null, default(TOutput));
         public static OperationResult<TOutput> Error(string errorMessage) => new OperationResult<TOutput>(OperationResultType.Error, errorMessage, default(TOutput));
-        public static OperationResult<TOutput> PaymentRequired(TOutput output) => new OperationResult<TOutput>(OperationResultType.PaymentRequired, null, output);
-        public static OperationResult<TOutput> Forbidden(TOutput output) => new OperationResult<TOutput>(OperationResultType.Forbidden, null, output);
-        public static OperationResult<TOutput> Unauthorized(TOutput output) => new OperationResult<TOutput>(OperationResultType.Unauthorized, null, output);
+        public static OperationResult<TOutput> PaymentRequired() => new OperationResult<TOutput>(OperationResultType.PaymentRequired, null, default(TOutput));
+        public static OperationResult<TOutput> Forbidden() => new OperationResult<TOutput>(OperationResultType.Forbidden, null, default(TOutput));
+        public static OperationResult<TOutput> Unauthorized() => new OperationResult<TOutput>(OperationResultType.Unauthorized, null, default(TOutput));
     }
 
     public enum OperationResultType
