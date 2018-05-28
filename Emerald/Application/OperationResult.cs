@@ -18,6 +18,7 @@
         public static OperationResult Created() => new OperationResult(OperationResultType.Created, null);
         public static OperationResult Deleted() => new OperationResult(OperationResultType.Deleted, null);
         public static OperationResult Error(string errorMessage) => new OperationResult(OperationResultType.Error, errorMessage);
+        public static OperationResult PaymentRequired() => new OperationResult(OperationResultType.PaymentRequired, null);
     }
 
     public sealed class OperationResult<TOutput> : IOperationResult
@@ -40,6 +41,7 @@
         public static OperationResult<TOutput> Deleted(TOutput output) => new OperationResult<TOutput>(OperationResultType.Deleted, null, output);
         public static OperationResult<TOutput> NotFound() => new OperationResult<TOutput>(OperationResultType.NotFound, null, default(TOutput));
         public static OperationResult<TOutput> Error(string errorMessage) => new OperationResult<TOutput>(OperationResultType.Error, errorMessage, default(TOutput));
+        public static OperationResult<TOutput> PaymentRequired(TOutput output) => new OperationResult<TOutput>(OperationResultType.PaymentRequired, null, output);
     }
 
     public enum OperationResultType
@@ -48,7 +50,8 @@
         Created = 1,
         Deleted = 2,
         NotFound = 3,
-        Error = 4
+        Error = 4,
+        PaymentRequired = 5
     }
 
     public interface IOperationResult
