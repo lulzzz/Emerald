@@ -4,6 +4,7 @@ using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
 using System;
+using System.Linq;
 
 namespace Emerald.AspNetCore.Common
 {
@@ -32,7 +33,9 @@ namespace Emerald.AspNetCore.Common
         }
         public void AddJob<T>() where T : class, IJob
         {
-            _emeraldSystemBuilder.AddJob<T>(_configuration.Environment.Jobs[typeof(T).Name]);
+            var jobConig = _configuration.Environment.Jobs.Single(c => c.Name == typeof(T).Name);
+            if (jobConig.Enabled == false) return;
+            _emeraldSystemBuilder.AddJob<T>(jobConig.CronTab);
         }
         public QueueConfig UseQueue()
         {

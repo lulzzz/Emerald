@@ -28,9 +28,9 @@ namespace Emerald
         {
             _commandHandlerTypeList.Add(typeof(T));
         }
-        public void AddJob<T>(string crontab) where T : class, IJob
+        public void AddJob<T>(string cronTab) where T : class, IJob
         {
-            _jobTypeList.Add(new Tuple<Type, string>(typeof(T), crontab));
+            _jobTypeList.Add(new Tuple<Type, string>(typeof(T), cronTab));
         }
         public QueueConfig UseQueue(string connectionString, long interval, bool listen)
         {

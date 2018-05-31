@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Configuration;
-using System.Collections.Generic;
 
 namespace Emerald.AspNetCore.Configuration
 {
@@ -14,13 +13,8 @@ namespace Emerald.AspNetCore.Configuration
             Jwt = new JwtConfigurationSection(configuration);
             Logging = new LoggingConfigurationSection(configuration);
             Name = configuration.GetSection("environment").GetValue<string>("name");
-            Jobs = new Dictionary<string, string>();
+            Jobs = JobConfigurationSection.Create(configuration);
             Queue = new QueueConfigurationSection(configuration);
-
-            foreach (var item in configuration.GetSection("environment:jobs").GetChildren())
-            {
-                if (item.GetValue<bool>("enabled")) Jobs.Add(item.GetValue<string>("name"), item.GetValue<string>("crontab"));
-            }
         }
 
         public ApplicationDbConfigurationSection ApplicationDb { get; }
@@ -30,7 +24,7 @@ namespace Emerald.AspNetCore.Configuration
         public JwtConfigurationSection Jwt { get; }
         public LoggingConfigurationSection Logging { get; }
         public string Name { get; }
-        public Dictionary<string, string> Jobs { get; }
+        public JobConfigurationSection[] Jobs { get; }
         public QueueConfigurationSection Queue { get; }
     }
 }
