@@ -37,5 +37,12 @@ namespace Emerald.AspNetCore
 
         protected abstract void ConfigureDependencies(IServiceCollection serviceCollection);
         protected abstract void ConfigureEmerald(EmeraldOptions options);
+
+        protected TDbContext CreateDbContext()
+        {
+            var dbContextOptionsBuilder = new DbContextOptionsBuilder<TDbContext>();
+            dbContextOptionsBuilder.UseSqlServer(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString);
+            return (TDbContext)typeof(TDbContext).GetConstructor(new[] { typeof(DbContextOptions) }).Invoke(new object[] { dbContextOptionsBuilder.Options });
+        }
     }
 }
