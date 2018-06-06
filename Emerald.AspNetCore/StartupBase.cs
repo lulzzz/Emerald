@@ -2,6 +2,7 @@
 using Emerald.AspNetCore.Configuration;
 using Emerald.AspNetCore.Extensions;
 using Emerald.AspNetCore.Infrastructure;
+using Emerald.AspNetCore.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -40,9 +41,7 @@ namespace Emerald.AspNetCore
 
         protected TDbContext CreateDbContext()
         {
-            var dbContextOptionsBuilder = new DbContextOptionsBuilder<TDbContext>();
-            dbContextOptionsBuilder.UseSqlServer(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString);
-            return (TDbContext)typeof(TDbContext).GetConstructor(new[] { typeof(DbContextOptions) }).Invoke(new object[] { dbContextOptionsBuilder.Options });
+            return DbContextFactory.Create<TDbContext>(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString);
         }
     }
 }

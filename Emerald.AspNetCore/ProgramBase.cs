@@ -4,8 +4,6 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
@@ -18,26 +16,27 @@ namespace Emerald.AspNetCore
     {
         protected static void Run(string[] args)
         {
-            var configuration = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.json", false).Build();
-            var environment = new EnvironmentConfigurationSection(configuration);
-            var builder = WebHost.CreateDefaultBuilder(args).UseStartup<TStartup>();
-            ConfiguringApplicationInsights(builder, environment);
-            ConfiguringDevelopmentHost(builder, environment);
-            ConfiguringLogging(builder, environment);
+            var configurationRoot = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.json", false).Build();
+            var configuration = new ApplicationConfiguration(configurationRoot);
+            ConfiguringLogging(configuration);
+            ConfiguringDatabase(configuration);
+
+            var builder = WebHost.CreateDefaultBuilder(args).UseStartup<TStartup>().UseSerilog();
+            ConfiguringApplicationInsights(builder, configuration);
+            ConfiguringDevelopmentHost(builder, configuration);
+
             var host = builder.Build();
-            ConfiguringDatabase(host, environment);
             host.Run();
         }
 
-        private static void ConfiguringApplicationInsights(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
+        private static void ConfiguringApplicationInsights(IWebHostBuilder builder, ApplicationConfiguration configuration)
         {
-            if (environment.ApplicationInsights.Enabled) builder.UseApplicationInsights(environment.ApplicationInsights.Key);
+            if (configuration.Environment.ApplicationInsights.Enabled) builder.UseApplicationInsights(configuration.Environment.ApplicationInsights.Key);
         }
-
-        private static void ConfiguringLogging(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
+        private static void ConfiguringLogging(ApplicationConfiguration configuration)
         {
-            var environmentName = environment.Name;
-            var logging = environment.Logging;
+            var environmentName = configuration.Environment.Name;
+            var logging = configuration.Environment.Logging;
             var loggerConfiguration = new LoggerConfiguration().MinimumLevel.Information().Enrich.FromLogContext();
 
             if (logging.Console.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Console();
@@ -49,40 +48,33 @@ namespace Emerald.AspNetCore
             }
 
             Log.Logger = loggerConfiguration.CreateLogger();
-
-            builder.UseSerilog();
         }
-        private static void ConfiguringDevelopmentHost(IWebHostBuilder builder, EnvironmentConfigurationSection environment)
+        private static void ConfiguringDevelopmentHost(IWebHostBuilder builder, ApplicationConfiguration configuration)
         {
-            if (string.Equals(environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase)) builder.UseUrls(environment.Development.Host);
+            if (string.Equals(configuration.Environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase)) builder.UseUrls(configuration.Environment.Development.Host);
         }
-        private static void ConfiguringDatabase(IWebHost host, EnvironmentConfigurationSection environment)
+        private static void ConfiguringDatabase(ApplicationConfiguration configuration)
         {
-            if (environment.ApplicationDb.MigrateDatabaseToLatestVersion)
+            if (configuration.Environment.ApplicationDb.MigrateDatabaseToLatestVersion)
             {
-                using (var scope = host.Services.CreateScope())
-                using (var dbContext = scope.ServiceProvider.GetService<TDbContext>())
+                using (var dbContext = DbContextFactory.Create<TDbContext>(configuration.Environment.ApplicationDb.ConnectionString))
                 {
-                    var logger = scope.ServiceProvider.GetService<ILogger<ProgramBase<TStartup, TDbContext, TDbInitializer>>>();
-
                     try
                     {
                         dbContext.Database.Migrate();
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError("Error on migrating database.", ex);
+                        Log.Logger.Error("Error on migrating database.", ex);
                     }
                 }
             }
 
-            if (environment.ApplicationDb.ExecuteSeed)
+            if (configuration.Environment.ApplicationDb.ExecuteSeed)
             {
-                using (var scope = host.Services.CreateScope())
-                using (var dbContext = scope.ServiceProvider.GetService<TDbContext>())
+                using (var dbContext = DbContextFactory.Create<TDbContext>(configuration.Environment.ApplicationDb.ConnectionString))
                 using (var transaction = dbContext.Database.BeginTransaction())
                 {
-                    var logger = scope.ServiceProvider.GetService<ILogger<ProgramBase<TStartup, TDbContext, TDbInitializer>>>();
                     var dbInitializer = Activator.CreateInstance<TDbInitializer>();
 
                     dbInitializer.Initialize();
@@ -95,7 +87,7 @@ namespace Emerald.AspNetCore
                     catch (Exception ex)
                     {
                         transaction.Rollback();
-                        logger.LogError("Error on running seed.", ex);
+                        Log.Logger.Error("Error on running seed.", ex);
                     }
                 }
             }
