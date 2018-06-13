@@ -20,10 +20,10 @@ namespace Emerald.Queue
             await _queueDbAccessManager.AddEvent(@event.GetType().Name, JsonConvert.SerializeObject(@event));
         }
 
-        public static IEventPublisher Create(string applicationName, string connectionString)
+        public static async Task<IEventPublisher> Create(string applicationName, string connectionString)
         {
             var queueDbAccessManager = new QueueDbAccessManager(applicationName, connectionString);
-            queueDbAccessManager.CreateQueueDbIfNeeded();
+            await queueDbAccessManager.CreateQueueDbIfNeeded();
             return new EventPublisher(queueDbAccessManager);
         }
     }
