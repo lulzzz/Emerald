@@ -80,48 +80,58 @@ namespace Emerald.Queue
             {
                 await connection.OpenAsync();
 
-                var transaction = connection.BeginTransaction();
-
-                try
+                using (var transaction = connection.BeginTransaction())
                 {
-                    var lastEventIdCommand = new SqlCommand(string.Format(LastEventIdQuery, _applicationName), connection, transaction);
-                    var lastEventIdCommandResult = await lastEventIdCommand.ExecuteScalarAsync();
-                    var lastEventId = Convert.ToInt64(lastEventIdCommandResult);
-
-                    var eventListCommand = new SqlCommand(string.Format(EventListQuery, lastEventId), connection, transaction);
-                    var eventListReader = await eventListCommand.ExecuteReaderAsync();
-                    var eventList = new List<Event>();
-
-                    while (await eventListReader.ReadAsync())
+                    try
                     {
-                        eventList.Add(new Event
+                        long lastEventId;
+                        using (var lastEventIdCommand = new SqlCommand(string.Format(LastEventIdQuery, _applicationName), connection, transaction))
                         {
-                            Id = eventListReader.GetInt32(0),
-                            Type = eventListReader.GetString(1),
-                            Body = eventListReader.GetString(2),
-                            Source = eventListReader.GetString(3),
-                            PublishedAt = eventListReader.GetDateTime(4)
-                        });
-                    }
+                            var lastEventIdCommandResult = await lastEventIdCommand.ExecuteScalarAsync();
+                            lastEventId = Convert.ToInt64(lastEventIdCommandResult);
+                        }
 
-                    if (eventList.Count > 0)
+                        List<Event> eventList;
+                        using (var eventListCommand = new SqlCommand(string.Format(EventListQuery, lastEventId), connection, transaction))
+                        using (var eventListReader = await eventListCommand.ExecuteReaderAsync())
+                        {
+                            eventList = new List<Event>();
+                            while (await eventListReader.ReadAsync())
+                            {
+                                eventList.Add(new Event
+                                {
+                                    Id = eventListReader.GetInt32(0),
+                                    Type = eventListReader.GetString(1),
+                                    Body = eventListReader.GetString(2),
+                                    Source = eventListReader.GetString(3),
+                                    PublishedAt = eventListReader.GetDateTime(4)
+                                });
+                            }
+                        }
+
+                        if (eventList.Count > 0)
+                        {
+                            lastEventId = eventList.Max(i => i.Id);
+                            using (var updateLastEventIdCommand = new SqlCommand(string.Format(UpdateLastEventIdQuery, lastEventId, _applicationName), connection, transaction))
+                            {
+                                await updateLastEventIdCommand.ExecuteNonQueryAsync();
+                            }
+                        }
+
+                        using (var updateLastReadAtCommand = new SqlCommand(string.Format(UpdateLastReadAtQuery, $"{DateTime.UtcNow:yyyy-MM-dd hh:mm:ss tt}", _applicationName), connection, transaction))
+                        {
+                            await updateLastReadAtCommand.ExecuteNonQueryAsync();
+                        }
+
+                        transaction.Commit();
+
+                        return eventList.ToArray();
+                    }
+                    catch
                     {
-                        lastEventId = eventList.Max(i => i.Id);
-                        var updateLastEventIdCommand = new SqlCommand(string.Format(UpdateLastEventIdQuery, lastEventId, _applicationName), connection, transaction);
-                        await updateLastEventIdCommand.ExecuteNonQueryAsync();
+                        transaction.Rollback();
+                        throw;
                     }
-
-                    var updateLastReadAtCommand = new SqlCommand(string.Format(UpdateLastReadAtQuery, $"{DateTime.UtcNow:yyyy-MM-dd hh:mm:ss tt}", _applicationName), connection, transaction);
-                    await updateLastReadAtCommand.ExecuteNonQueryAsync();
-
-                    transaction.Commit();
-
-                    return eventList.ToArray();
-                }
-                catch
-                {
-                    transaction.Rollback();
-                    throw;
                 }
             }
         }

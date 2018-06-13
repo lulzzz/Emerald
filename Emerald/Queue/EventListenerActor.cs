@@ -72,13 +72,13 @@ namespace Emerald.Queue
                             }
 
                             transaction.Commit();
-                            logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
                             await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
+                            logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
                         }
                         catch (Exception ex)
                         {
-                            transaction.Rollback();
                             logger.Error(ex, $"Error on handling event '{@event.Id}:{@event.Type}'.");
+                            transaction.Rollback();
                             await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", ex.ToString());
                         }
                     }
