@@ -61,8 +61,8 @@ namespace Emerald.AspNetCore.Infrastructure
 
             var claims = new[]
             {
-                new Claim("userId", operationResult.GetOutput().UserId.ToString()),
-                new Claim("context", JsonConvert.SerializeObject(operationResult.GetOutput().Context))
+                new Claim("userId", operationResult.Output.UserId.ToString()),
+                new Claim("context", JsonConvert.SerializeObject(operationResult.Output.Context))
             };
 
             var token = new JwtSecurityToken(claims: claims, signingCredentials: signingCredentials);
