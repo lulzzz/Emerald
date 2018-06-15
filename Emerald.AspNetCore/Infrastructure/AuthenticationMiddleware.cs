@@ -51,8 +51,8 @@ namespace Emerald.AspNetCore.Infrastructure
             if (authenticationRequestBody.Password == null) return WriteBadRequest(context, "'password' value is required.", startedAt);
 
             var operationResult = _authenticationService.Authenticate(authenticationRequestBody.UserName, authenticationRequestBody.Password);
-            if (operationResult.IsError) return WriteBadRequest(context, operationResult.ErrorMessage, startedAt);
-            if (operationResult.Type == OperationResultType.NotFound) return WriteUnauthorized(context, startedAt);
+            if (operationResult.IsError) return WriteBadRequest(context, JsonConvert.SerializeObject(operationResult.GetError()), startedAt);
+            if (operationResult.IsNotFound) return WriteUnauthorized(context, startedAt);
 
             var symmetricSecurityKeyFilePath = _configuration.Environment.Jwt.Key;
             var symmetricSecurityKeyFileContent = File.ReadAllText(symmetricSecurityKeyFilePath);
@@ -61,8 +61,8 @@ namespace Emerald.AspNetCore.Infrastructure
 
             var claims = new[]
             {
-                new Claim("userId", operationResult.Output.UserId.ToString()),
-                new Claim("context", JsonConvert.SerializeObject(operationResult.Output.Context))
+                new Claim("userId", operationResult.GetOutput().UserId.ToString()),
+                new Claim("context", JsonConvert.SerializeObject(operationResult.GetOutput().Context))
             };
 
             var token = new JwtSecurityToken(claims: claims, signingCredentials: signingCredentials);

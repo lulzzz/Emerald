@@ -14,18 +14,15 @@ namespace Emerald.AspNetCore.Extensions
         }
         public static IActionResult OperationResult(this Controller controller, OperationResult operationResult, string location)
         {
-            switch (operationResult.Type)
-            {
-                case OperationResultType.Success: return new OkResult();
-                case OperationResultType.Created: return new CreatedResult(location, null);
-                case OperationResultType.Deleted: return new NoContentResult();
-                case OperationResultType.NotFound: return new NotFoundResult();
-                case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
-                case OperationResultType.PaymentRequired: return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
-                case OperationResultType.Forbidden: return new StatusCodeResult(StatusCodes.Status403Forbidden);
-                case OperationResultType.Unauthorized: return new StatusCodeResult(StatusCodes.Status401Unauthorized);
-                default: throw new NotSupportedException();
-            }
+            if (operationResult.IsSuccess) return new OkResult();
+            if (operationResult.IsCreated) return new CreatedResult(location, null);
+            if (operationResult.IsDeleted) return new NoContentResult();
+            if (operationResult.IsNotFound) return new NotFoundResult();
+            if (operationResult.IsError) return new BadRequestObjectResult(operationResult.GetError());
+            if (operationResult.IsPaymentRequired) return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
+            if (operationResult.IsForbidden) return new StatusCodeResult(StatusCodes.Status403Forbidden);
+            if (operationResult.IsUnauthorized) return new StatusCodeResult(StatusCodes.Status401Unauthorized);
+            throw new NotSupportedException();
         }
         public static IActionResult OperationResult<T>(this Controller controller, OperationResult<T> operationResult)
         {
@@ -41,18 +38,15 @@ namespace Emerald.AspNetCore.Extensions
         }
         public static IActionResult OperationResult<TResult, TViewModel>(this Controller controller, OperationResult<TResult> operationResult, Func<TResult, TViewModel> viewModelFactory, string location)
         {
-            switch (operationResult.Type)
-            {
-                case OperationResultType.Success: return new OkObjectResult(viewModelFactory(operationResult.Output));
-                case OperationResultType.Created: return new CreatedResult(location, viewModelFactory(operationResult.Output));
-                case OperationResultType.Deleted: return operationResult.Output == null ? (IActionResult)new NoContentResult() : new OkObjectResult(viewModelFactory(operationResult.Output));
-                case OperationResultType.NotFound: return new NotFoundResult();
-                case OperationResultType.Error: return new BadRequestObjectResult(operationResult.ErrorMessage);
-                case OperationResultType.PaymentRequired: return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
-                case OperationResultType.Forbidden: return new StatusCodeResult(StatusCodes.Status403Forbidden);
-                case OperationResultType.Unauthorized: return new StatusCodeResult(StatusCodes.Status401Unauthorized);
-                default: throw new NotSupportedException();
-            }
+            if (operationResult.IsSuccess) return new OkObjectResult(viewModelFactory(operationResult.GetOutput()));
+            if (operationResult.IsCreated) return new CreatedResult(location, viewModelFactory(operationResult.GetOutput()));
+            if (operationResult.IsDeleted) return operationResult.GetOutput() == null ? (IActionResult)new NoContentResult() : new OkObjectResult(viewModelFactory(operationResult.GetOutput()));
+            if (operationResult.IsNotFound) return new NotFoundResult();
+            if (operationResult.IsError) return new BadRequestObjectResult(operationResult.GetError());
+            if (operationResult.IsPaymentRequired) return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
+            if (operationResult.IsForbidden) return new StatusCodeResult(StatusCodes.Status403Forbidden);
+            if (operationResult.IsUnauthorized) return new StatusCodeResult(StatusCodes.Status401Unauthorized);
+            throw new NotSupportedException();
         }
 
         public static IActionResult QueryResult<TResult>(this Controller controller, QueryResult<TResult> queryResult)
@@ -61,28 +55,14 @@ namespace Emerald.AspNetCore.Extensions
         }
         public static IActionResult QueryResult<TResult, TViewModel>(this Controller controller, QueryResult<TResult> queryResult, Func<TResult, TViewModel> viewModelFactory)
         {
-            if (queryResult.Type == QueryResultType.Success)
+            if (queryResult.IsSuccess) return new OkObjectResult(queryResult.GetOutput() == null ? (object)null : viewModelFactory(queryResult.GetOutput()));
+            if (queryResult.IsNotFound) return new NotFoundResult();
+            if (queryResult.IsError) return new BadRequestObjectResult(queryResult.GetError());
+            if (queryResult.IsFile)
             {
-                return new OkObjectResult(queryResult.Output == null ? (object)null : viewModelFactory(queryResult.Output));
+                var file = queryResult.GetOutput() as File;
+                return new FileContentResult(file?.Content, file?.ContentType) { FileDownloadName = file?.FileName };
             }
-
-            if (queryResult.Type == QueryResultType.NotFound)
-            {
-                return new NotFoundResult();
-            }
-
-            if (queryResult.Type == QueryResultType.Error)
-            {
-                return new BadRequestObjectResult(queryResult.ErrorMessage);
-            }
-
-            var fileOutput = queryResult.Output as QueryResultFileOutput;
-
-            if (queryResult.Type == QueryResultType.File && fileOutput != null)
-            {
-                return new FileContentResult(fileOutput.Content, fileOutput.ContentType) { FileDownloadName = fileOutput.FileName };
-            }
-
             throw new NotSupportedException();
         }
     }
