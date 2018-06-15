@@ -24,6 +24,7 @@ namespace Emerald.Application
         public bool IsForbidden => _type == OperationResultType.Forbidden;
         public bool IsUnauthorized => _type == OperationResultType.Unauthorized;
 
+        public string ErrorMessage => _errorMessage ?? _error?.Message;
         public object GetError() => _error ?? _errorMessage as object;
 
         public static OperationResult Success() => new OperationResult(null, null, OperationResultType.Success);
@@ -61,13 +62,14 @@ namespace Emerald.Application
         public bool IsForbidden => _type == OperationResultType.Forbidden;
         public bool IsUnauthorized => _type == OperationResultType.Unauthorized;
 
+        public string ErrorMessage => _errorMessage ?? _error?.Message;
         public object GetError() => _error ?? _errorMessage as object;
         public TOutput GetOutput() => _output;
 
         public static OperationResult<TOutput> Success(TOutput output) => new OperationResult<TOutput>(null, null, output, OperationResultType.Success);
         public static OperationResult<TOutput> NotFound() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.NotFound);
         public static OperationResult<TOutput> Created(TOutput output) => new OperationResult<TOutput>(null, null, output, OperationResultType.Created);
-        public static OperationResult<TOutput> Deleted() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.Deleted);
+        public static OperationResult<TOutput> Deleted(TOutput output) => new OperationResult<TOutput>(null, null, output, OperationResultType.Deleted);
         public static OperationResult<TOutput> Error(string errorMessage) => new OperationResult<TOutput>(null, errorMessage, default(TOutput), OperationResultType.Error);
         public static OperationResult<TOutput> Error(Error error) => new OperationResult<TOutput>(error, null, default(TOutput), OperationResultType.Error);
         public static OperationResult<TOutput> PaymentRequired() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.PaymentRequired);
