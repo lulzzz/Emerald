@@ -9,7 +9,7 @@ namespace Emerald.Application
 {
     public static class ValidationHelper
     {
-        private static readonly string[] ImageExtensionArray = { "jpg", "bmp", "gif", "png" };
+        private static readonly string[] ImageExtensionArray = { "jpg", "jpeg", "bmp", "gif", "png" };
 
         public static bool IsNull<T>(T? value, out T result) where T : struct
         {
