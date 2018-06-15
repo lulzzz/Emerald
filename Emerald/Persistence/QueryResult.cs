@@ -6,14 +6,13 @@ namespace Emerald.Persistence
     {
         private readonly Error _error;
         private readonly string _errorMessage;
-        private readonly TOutput _output;
         private readonly QueryResultType _type;
 
         private QueryResult(Error error, string errorMessage, TOutput output, QueryResultType type)
         {
             _error = error;
             _errorMessage = errorMessage;
-            _output = output;
+            Output = output;
             _type = type;
         }
 
@@ -23,7 +22,7 @@ namespace Emerald.Persistence
         public bool IsFile => _type == QueryResultType.File;
 
         public object GetError() => _error ?? _errorMessage as object;
-        public TOutput GetOutput() => _output;
+        public TOutput Output { get; }
 
         public static QueryResult<TOutput> Success(TOutput output) => new QueryResult<TOutput>(null, null, output, QueryResultType.Success);
         public static QueryResult<TOutput> NotFound() => new QueryResult<TOutput>(null, null, default(TOutput), QueryResultType.NotFound);
