@@ -1,31 +1,40 @@
-﻿namespace Emerald.Persistence
+﻿using Emerald.Common;
+
+namespace Emerald.Persistence
 {
     public sealed class QueryResult<TOutput>
     {
-        private QueryResult(QueryResultType type, string errorMessage, TOutput output)
+        private readonly Error _error;
+        private readonly string _errorMessage;
+        private readonly TOutput _output;
+        private readonly QueryResultType _type;
+
+        private QueryResult(Error error, string errorMessage, TOutput output, QueryResultType type)
         {
-            Type = type;
-            ErrorMessage = errorMessage;
-            Output = output;
+            _error = error;
+            _errorMessage = errorMessage;
+            _output = output;
+            _type = type;
         }
 
-        public bool IsSuccess => Type == QueryResultType.Success;
-        public bool IsNotFound => Type == QueryResultType.NotFound;
-        public bool IsError => Type == QueryResultType.Error;
+        public bool IsSuccess => _type == QueryResultType.Success;
+        public bool IsNotFound => _type == QueryResultType.NotFound;
+        public bool IsError => _type == QueryResultType.Error;
+        public bool IsFile => _type == QueryResultType.File;
 
-        public QueryResultType Type { get; }
-        public string ErrorMessage { get; }
-        public TOutput Output { get; }
+        public object GetError() => _error ?? _errorMessage as object;
+        public TOutput GetOutput() => _output;
 
-        public static QueryResult<TOutput> Success(TOutput output) => new QueryResult<TOutput>(QueryResultType.Success, null, output);
-        public static QueryResult<TOutput> NotFound() => new QueryResult<TOutput>(QueryResultType.NotFound, null, default(TOutput));
-        public static QueryResult<TOutput> Error(string errorMessage) => new QueryResult<TOutput>(QueryResultType.Error, errorMessage, default(TOutput));
-        public static QueryResult<QueryResultFileOutput> File(QueryResultFileOutput output) => new QueryResult<QueryResultFileOutput>(QueryResultType.File, null, output);
+        public static QueryResult<TOutput> Success(TOutput output) => new QueryResult<TOutput>(null, null, output, QueryResultType.Success);
+        public static QueryResult<TOutput> NotFound() => new QueryResult<TOutput>(null, null, default(TOutput), QueryResultType.NotFound);
+        public static QueryResult<TOutput> Error(string errorMessage) => new QueryResult<TOutput>(null, errorMessage, default(TOutput), QueryResultType.Error);
+        public static QueryResult<TOutput> Error(Error error) => new QueryResult<TOutput>(error, null, default(TOutput), QueryResultType.Error);
+        public static QueryResult<File> File(File file) => new QueryResult<File>(null, null, file, QueryResultType.File);
     }
 
-    public sealed class QueryResultFileOutput
+    public sealed class File
     {
-        public QueryResultFileOutput(byte[] content, string contentType, string fileName)
+        public File(byte[] content, string contentType, string fileName)
         {
             Content = content;
             ContentType = contentType;
@@ -35,5 +44,13 @@
         public byte[] Content { get; }
         public string ContentType { get; }
         public string FileName { get; }
+    }
+
+    public enum QueryResultType
+    {
+        Success,
+        NotFound,
+        Error,
+        File
     }
 }

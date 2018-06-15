@@ -1,51 +1,78 @@
-﻿namespace Emerald.Application
+﻿using Emerald.Common;
+
+namespace Emerald.Application
 {
     public sealed class OperationResult : IOperationResult
     {
-        private OperationResult(OperationResultType type, string errorMessage)
+        private readonly Error _error;
+        private readonly string _errorMessage;
+        private readonly OperationResultType _type;
+
+        private OperationResult(Error error, string errorMessage, OperationResultType type)
         {
-            Type = type;
-            ErrorMessage = errorMessage;
+            _error = error;
+            _errorMessage = errorMessage;
+            _type = type;
         }
 
-        public OperationResultType Type { get; }
-        public string ErrorMessage { get; }
-        public bool IsSuccess => Type != OperationResultType.Error;
-        public bool IsError => Type == OperationResultType.Error;
+        public bool IsSuccess => _type == OperationResultType.Success;
+        public bool IsNotFound => _type == OperationResultType.NotFound;
+        public bool IsCreated => _type == OperationResultType.Created;
+        public bool IsDeleted => _type == OperationResultType.Deleted;
+        public bool IsError => _type == OperationResultType.Error;
+        public bool IsPaymentRequired => _type == OperationResultType.PaymentRequired;
+        public bool IsForbidden => _type == OperationResultType.Forbidden;
+        public bool IsUnauthorized => _type == OperationResultType.Unauthorized;
 
-        public static OperationResult Success() => new OperationResult(OperationResultType.Success, null);
-        public static OperationResult NotFound() => new OperationResult(OperationResultType.NotFound, null);
-        public static OperationResult Created() => new OperationResult(OperationResultType.Created, null);
-        public static OperationResult Deleted() => new OperationResult(OperationResultType.Deleted, null);
-        public static OperationResult Error(string errorMessage) => new OperationResult(OperationResultType.Error, errorMessage);
-        public static OperationResult PaymentRequired() => new OperationResult(OperationResultType.PaymentRequired, null);
-        public static OperationResult Forbidden() => new OperationResult(OperationResultType.Forbidden, null);
-        public static OperationResult Unauthorized() => new OperationResult(OperationResultType.Unauthorized, null);
+        public object GetError() => _error ?? _errorMessage as object;
+
+        public static OperationResult Success() => new OperationResult(null, null, OperationResultType.Success);
+        public static OperationResult NotFound() => new OperationResult(null, null, OperationResultType.NotFound);
+        public static OperationResult Created() => new OperationResult(null, null, OperationResultType.Created);
+        public static OperationResult Deleted() => new OperationResult(null, null, OperationResultType.Deleted);
+        public static OperationResult Error(string errorMessage) => new OperationResult(null, errorMessage, OperationResultType.Error);
+        public static OperationResult Error(Error error) => new OperationResult(error, null, OperationResultType.Error);
+        public static OperationResult PaymentRequired() => new OperationResult(null, null, OperationResultType.PaymentRequired);
+        public static OperationResult Forbidden() => new OperationResult(null, null, OperationResultType.Forbidden);
+        public static OperationResult Unauthorized() => new OperationResult(null, null, OperationResultType.Unauthorized);
     }
 
     public sealed class OperationResult<TOutput> : IOperationResult
     {
-        private OperationResult(OperationResultType type, string errorMessage, TOutput output)
+        private readonly Error _error;
+        private readonly string _errorMessage;
+        private readonly TOutput _output;
+        private readonly OperationResultType _type;
+
+        private OperationResult(Error error, string errorMessage, TOutput output, OperationResultType type)
         {
-            Type = type;
-            ErrorMessage = errorMessage;
-            Output = output;
+            _error = error;
+            _errorMessage = errorMessage;
+            _output = output;
+            _type = type;
         }
 
-        public OperationResultType Type { get; }
-        public string ErrorMessage { get; }
-        public TOutput Output { get; }
-        public bool IsSuccess => Type != OperationResultType.Error;
-        public bool IsError => Type == OperationResultType.Error;
+        public bool IsSuccess => _type == OperationResultType.Success;
+        public bool IsNotFound => _type == OperationResultType.NotFound;
+        public bool IsCreated => _type == OperationResultType.Created;
+        public bool IsDeleted => _type == OperationResultType.Deleted;
+        public bool IsError => _type == OperationResultType.Error;
+        public bool IsPaymentRequired => _type == OperationResultType.PaymentRequired;
+        public bool IsForbidden => _type == OperationResultType.Forbidden;
+        public bool IsUnauthorized => _type == OperationResultType.Unauthorized;
 
-        public static OperationResult<TOutput> Success(TOutput output) => new OperationResult<TOutput>(OperationResultType.Success, null, output);
-        public static OperationResult<TOutput> Created(TOutput output) => new OperationResult<TOutput>(OperationResultType.Created, null, output);
-        public static OperationResult<TOutput> Deleted(TOutput output) => new OperationResult<TOutput>(OperationResultType.Deleted, null, output);
-        public static OperationResult<TOutput> NotFound() => new OperationResult<TOutput>(OperationResultType.NotFound, null, default(TOutput));
-        public static OperationResult<TOutput> Error(string errorMessage) => new OperationResult<TOutput>(OperationResultType.Error, errorMessage, default(TOutput));
-        public static OperationResult<TOutput> PaymentRequired() => new OperationResult<TOutput>(OperationResultType.PaymentRequired, null, default(TOutput));
-        public static OperationResult<TOutput> Forbidden() => new OperationResult<TOutput>(OperationResultType.Forbidden, null, default(TOutput));
-        public static OperationResult<TOutput> Unauthorized() => new OperationResult<TOutput>(OperationResultType.Unauthorized, null, default(TOutput));
+        public object GetError() => _error ?? _errorMessage as object;
+        public TOutput GetOutput() => _output;
+
+        public static OperationResult<TOutput> Success(TOutput output) => new OperationResult<TOutput>(null, null, output, OperationResultType.Success);
+        public static OperationResult<TOutput> NotFound() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.NotFound);
+        public static OperationResult<TOutput> Created(TOutput output) => new OperationResult<TOutput>(null, null, output, OperationResultType.Created);
+        public static OperationResult<TOutput> Deleted() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.Deleted);
+        public static OperationResult<TOutput> Error(string errorMessage) => new OperationResult<TOutput>(null, errorMessage, default(TOutput), OperationResultType.Error);
+        public static OperationResult<TOutput> Error(Error error) => new OperationResult<TOutput>(error, null, default(TOutput), OperationResultType.Error);
+        public static OperationResult<TOutput> PaymentRequired() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.PaymentRequired);
+        public static OperationResult<TOutput> Forbidden() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.Forbidden);
+        public static OperationResult<TOutput> Unauthorized() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.Unauthorized);
     }
 
     public enum OperationResultType
