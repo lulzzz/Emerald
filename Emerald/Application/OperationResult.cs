@@ -42,14 +42,13 @@ namespace Emerald.Application
     {
         private readonly Error _error;
         private readonly string _errorMessage;
-        private readonly TOutput _output;
         private readonly OperationResultType _type;
 
         private OperationResult(Error error, string errorMessage, TOutput output, OperationResultType type)
         {
             _error = error;
             _errorMessage = errorMessage;
-            _output = output;
+            Output = output;
             _type = type;
         }
 
@@ -63,8 +62,9 @@ namespace Emerald.Application
         public bool IsUnauthorized => _type == OperationResultType.Unauthorized;
 
         public string ErrorMessage => _errorMessage ?? _error?.Message;
+        public TOutput Output { get; }
+
         public object GetError() => _error ?? _errorMessage as object;
-        public TOutput GetOutput() => _output;
 
         public static OperationResult<TOutput> Success(TOutput output) => new OperationResult<TOutput>(null, null, output, OperationResultType.Success);
         public static OperationResult<TOutput> NotFound() => new OperationResult<TOutput>(null, null, default(TOutput), OperationResultType.NotFound);
