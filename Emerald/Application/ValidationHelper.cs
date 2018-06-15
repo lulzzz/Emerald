@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -8,6 +9,8 @@ namespace Emerald.Application
 {
     public static class ValidationHelper
     {
+        private static readonly string[] ImageExtensionArray = { "jpg", "bmp", "gif", "png" };
+
         public static bool IsNull<T>(T? value, out T result) where T : struct
         {
             result = value ?? default(T);
@@ -32,6 +35,14 @@ namespace Emerald.Application
         public static bool IsNotLink(string str)
         {
             return !IsLink(str);
+        }
+        public static bool IsImageLink(string str)
+        {
+            return Uri.TryCreate(str, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && ImageExtensionArray.Contains(Path.GetExtension(str));
+        }
+        public static bool IsNotImageLink(string str)
+        {
+            return !IsImageLink(str);
         }
         public static bool IsNullOrEmpty<T>(IEnumerable<T> collection)
         {
