@@ -21,6 +21,7 @@ namespace Emerald.Persistence
         public bool IsError => _type == QueryResultType.Error;
         public bool IsFile => _type == QueryResultType.File;
 
+        public string ErrorMessage => _errorMessage ?? _error?.Message;
         public object GetError() => _error ?? _errorMessage as object;
         public TOutput Output { get; }
 
