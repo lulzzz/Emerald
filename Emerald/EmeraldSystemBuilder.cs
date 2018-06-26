@@ -2,6 +2,7 @@
 using Akka.Routing;
 using Akka.Util.Internal;
 using Emerald.Abstractions;
+using Emerald.Application;
 using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
@@ -10,7 +11,7 @@ using System.Collections.Generic;
 
 namespace Emerald
 {
-    public sealed class EmeraldSystemBuilder<TServiceScopeFactory, TTransactionScopeFactory> : IEmeraldSystemBuilder where TServiceScopeFactory : class, IServiceScopeFactory where TTransactionScopeFactory : class, ITransactionScopeFactory
+    public sealed class EmeraldSystemBuilder
     {
         private const string AkkaConfig =
             "akka { " +
@@ -26,41 +27,45 @@ namespace Emerald
         private readonly List<Type> _commandHandlerTypeList = new List<Type>();
         private readonly List<Tuple<Type, string>> _jobTypeList = new List<Tuple<Type, string>>();
         private QueueConfig _queueConfig;
+        private readonly IServiceCollection _serviceCollection;
+        private readonly Type _serviceScopeFactoryType;
+        private readonly Type _transactionScopeFactoryType;
 
-        public EmeraldSystemBuilder(string applicationName)
+        private EmeraldSystemBuilder(string applicationName, IServiceCollection serviceCollection, Type serviceScopeFactoryType, Type transactionScopeFactoryType)
         {
-            _applicationName = applicationName ?? throw new ArgumentNullException(nameof(applicationName));
+            _applicationName = applicationName;
+            _serviceCollection = serviceCollection;
+            _serviceScopeFactoryType = serviceScopeFactoryType;
+            _transactionScopeFactoryType = transactionScopeFactoryType;
             _actorSystem = ActorSystem.Create(_applicationName, AkkaConfig);
         }
 
-        public void AddCommandHandler<T>() where T : CommandHandler
+        internal void AddCommandHandler<T>() where T : CommandHandler
         {
             _commandHandlerTypeList.Add(typeof(T));
         }
-        public void AddJob<T>(string cronTab) where T : class, IJob
+        internal void AddJob<T>(string cronTab) where T : class, IJob
         {
-            if (cronTab == null) throw new ArgumentNullException(nameof(cronTab));
             _jobTypeList.Add(new Tuple<Type, string>(typeof(T), cronTab));
         }
-        public QueueConfig UseQueue(string connectionString, long interval, bool listen)
+        internal QueueConfig UseQueue(string connectionString, long interval, bool listen)
         {
-            if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
-            if (interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than 0.");
             _queueConfig = new QueueConfig(_applicationName, connectionString, interval, listen);
             return _queueConfig;
         }
-        public void RegisterDependencies(IServiceCollection serviceCollection)
+        internal void RegisterDependencies()
         {
-            serviceCollection.AddScoped<IServiceScopeFactory, TServiceScopeFactory>();
-            serviceCollection.AddScoped<ITransactionScopeFactory, TTransactionScopeFactory>();
-            _commandHandlerTypeList.ForEach(serviceCollection.AddScoped);
-            _jobTypeList.ForEach(j => serviceCollection.AddScoped(j.Item1));
-            _queueConfig?.EventListenerTypes.ForEach(serviceCollection.AddScoped);
-            serviceCollection.AddSingleton(new CommandExecutor(_actorSystem, _commandHandlerActorDictionary));
-            serviceCollection.AddSingleton(new EventPublisher(_queueConfig?.QueueDbAccessManager));
+            _serviceCollection.AddScoped(typeof(IServiceScopeFactory), _serviceScopeFactoryType);
+            _serviceCollection.AddScoped(typeof(ITransactionScopeFactory), _transactionScopeFactoryType);
+            _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
+            _jobTypeList.ForEach(j => _serviceCollection.AddScoped(j.Item1));
+            _queueConfig?.EventListenerTypes.ForEach(_serviceCollection.AddScoped);
+            _serviceCollection.AddSingleton(new CommandExecutor(_actorSystem, _commandHandlerActorDictionary));
+            _serviceCollection.AddSingleton(new EventPublisher(_queueConfig?.QueueDbAccessManager));
         }
-        public EmeraldSystem Build(IServiceProvider serviceProvider)
+        internal EmeraldSystem Build()
         {
+            var serviceProvider = _serviceCollection.BuildServiceProvider();
             var serviceScopeFactory = (IServiceScopeFactory)serviceProvider.GetService(typeof(IServiceScopeFactory));
             var transactionScopeFactory = (ITransactionScopeFactory)serviceProvider.GetService(typeof(ITransactionScopeFactory));
 
@@ -125,6 +130,62 @@ namespace Emerald
             }
 
             return dictionary;
+        }
+
+        public static EmeraldSystemBuilderFirstStepConfig Create<TServiceScopeFactory, TTransactionScopeFactory>(string applicationName, IServiceCollection serviceCollection) where TServiceScopeFactory : class, IServiceScopeFactory where TTransactionScopeFactory : class, ITransactionScopeFactory
+        {
+            if (ValidationHelper.IsNullOrEmptyOrWhiteSpace(applicationName)) throw new ArgumentException("'applicationName' is required.", nameof(applicationName));
+            if (serviceCollection == null) throw new ArgumentNullException(nameof(serviceCollection));
+            return new EmeraldSystemBuilderFirstStepConfig(new EmeraldSystemBuilder(applicationName, serviceCollection, typeof(TServiceScopeFactory), typeof(TTransactionScopeFactory)));
+        }
+    }
+
+    public class EmeraldSystemBuilderFirstStepConfig
+    {
+        private readonly EmeraldSystemBuilder _emeraldSystemBuilder;
+
+        internal EmeraldSystemBuilderFirstStepConfig(EmeraldSystemBuilder emeraldSystemBuilder)
+        {
+            _emeraldSystemBuilder = emeraldSystemBuilder;
+        }
+
+        public EmeraldSystemBuilderFirstStepConfig AddCommandHandler<T>() where T : CommandHandler
+        {
+            _emeraldSystemBuilder.AddCommandHandler<T>();
+            return this;
+        }
+        public EmeraldSystemBuilderFirstStepConfig AddJob<T>(string cronTab) where T : class, IJob
+        {
+            if (cronTab == null) throw new ArgumentNullException(nameof(cronTab));
+            _emeraldSystemBuilder.AddJob<T>(cronTab);
+            return this;
+        }
+        public EmeraldSystemBuilderFirstStepConfig UseQueue(string connectionString, long interval, bool listen, Action<QueueConfig> configure)
+        {
+            if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
+            if (interval <= 0) throw new ArgumentOutOfRangeException(nameof(interval), interval, "Interval must be greater than 0.");
+            var queueConfig = _emeraldSystemBuilder.UseQueue(connectionString, interval, listen);
+            configure(queueConfig);
+            return this;
+        }
+        public EmeraldSystemBuilderSecondStepConfig RegisterDependencies()
+        {
+            _emeraldSystemBuilder.RegisterDependencies();
+            return new EmeraldSystemBuilderSecondStepConfig(_emeraldSystemBuilder);
+        }
+    }
+    public class EmeraldSystemBuilderSecondStepConfig
+    {
+        private readonly EmeraldSystemBuilder _emeraldSystemBuilder;
+
+        internal EmeraldSystemBuilderSecondStepConfig(EmeraldSystemBuilder emeraldSystemBuilder)
+        {
+            _emeraldSystemBuilder = emeraldSystemBuilder;
+        }
+
+        public EmeraldSystem Build()
+        {
+            return _emeraldSystemBuilder.Build();
         }
     }
 }
