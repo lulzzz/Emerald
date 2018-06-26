@@ -7,6 +7,5 @@ namespace Emerald.Abstractions
         void AddSingleton<T>(T obj) where T : class;
         void AddScoped(Type type);
         void AddScoped<TService, TImplementation>() where TImplementation : class, TService where TService : class;
-        IServiceProvider BuildServiceProvider();
     }
 }
