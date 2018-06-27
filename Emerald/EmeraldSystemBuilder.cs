@@ -87,7 +87,9 @@ namespace Emerald
             if (_queueConfig != null && _queueConfig.Listen && _queueConfig.EventListenerTypes.Length > 0)
             {
                 _queueConfig.EventTypes = GetEventTypes(_queueConfig.EventListenerTypes, serviceScopeFactory);
-                var eventListenerActorProps = Props.Create(() => new EventListenerActor(_queueConfig, serviceScopeFactory, transactionScopeFactory));
+                var eventHandlerActorProps = Props.Create(() => new EventHandlerActor(_queueConfig, serviceScopeFactory, transactionScopeFactory)).WithRouter(new RoundRobinPool(1000));
+                var eventHandlerActor = _actorSystem.ActorOf(eventHandlerActorProps);
+                var eventListenerActorProps = Props.Create(() => new EventListenerActor(eventHandlerActor, _queueConfig));
                 var eventListenerActor = _actorSystem.ActorOf(eventListenerActorProps);
                 eventListenerActor.Tell(EventListenerActor.ScheduleNextListenCommand);
             }

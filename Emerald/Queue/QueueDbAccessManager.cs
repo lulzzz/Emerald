@@ -104,14 +104,12 @@ namespace Emerald.Queue
                                 eventList = new List<Event>();
                                 while (await eventListReader.ReadAsync())
                                 {
-                                    eventList.Add(new Event
-                                    {
-                                        Id = eventListReader.GetInt32(0),
-                                        Type = eventListReader.GetString(1),
-                                        Body = eventListReader.GetString(2),
-                                        Source = eventListReader.GetString(3),
-                                        PublishedAt = eventListReader.GetDateTime(4)
-                                    });
+                                    var id = eventListReader.GetInt32(0);
+                                    var type = eventListReader.GetString(1);
+                                    var body = eventListReader.GetString(2);
+                                    var source = eventListReader.GetString(3);
+                                    var publishedAt = eventListReader.GetDateTime(4);
+                                    eventList.Add(new Event(id, type, body, source, publishedAt));
                                 }
                             }
                         }
