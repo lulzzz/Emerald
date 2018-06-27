@@ -12,15 +12,15 @@ namespace Emerald.Queue
         private readonly string _connectionString;
 
         private const string CreateDbQuery = "IF (SELECT COUNT(*) FROM [dbo].[sysdatabases] WHERE [name] = '{0}') = 0 CREATE DATABASE [{0}]";
-        private const string CreateEventTableQuery = "IF OBJECT_ID('Events') IS NULL CREATE TABLE [dbo].[Events] ([Id] INT IDENTITY(1,1) PRIMARY KEY, [Type] NVARCHAR(128) NOT NULL, [Body] NVARCHAR(MAX) NOT NULL, [Source] NVARCHAR(64) NOT NULL, [PublishedAt] DATETIME2(7) NOT NULL)";
+        private const string CreateEventTableQuery = "IF OBJECT_ID('Events') IS NULL CREATE TABLE [dbo].[Events] ([Id] INT IDENTITY(1,1) PRIMARY KEY, [Type] NVARCHAR(128) NOT NULL, [Body] NVARCHAR(MAX) NOT NULL, [Source] NVARCHAR(64) NOT NULL, [PublishedAt] DATETIME2(7) NOT NULL) IF NOT EXISTS (SELECT * FROM [sys].[columns] WHERE [object_id] = OBJECT_ID(N'[dbo].[Events]') AND [name] = 'ConsistentHashKey') ALTER TABLE [dbo].[Events] ADD [ConsistentHashKey] NVARCHAR(64) NULL";
         private const string CreateSubscriberTableQuery = "IF OBJECT_ID('Subscribers') IS NULL CREATE TABLE [dbo].[Subscribers] ([Name] NVARCHAR(64) PRIMARY KEY, [LastReadAt] DATETIME2(7) NOT NULL, [LastReadEventId] INT NOT NULL)";
         private const string CreateLogTableQuery = "IF OBJECT_ID('Logs') IS NULL CREATE TABLE [dbo].[Logs] ([EventId] INT NOT NULL, [SubscriberName] NVARCHAR(64) NOT NULL, [ProcessedAt] DATETIME2(7) NOT NULL, [Result] NVARCHAR(8) NOT NULL, [Message] NVARCHAR(1024) NOT NULL, PRIMARY KEY ([EventId], [SubscriberName]))";
         private const string RegisterSubscriberQuery = "IF (SELECT COUNT(*) FROM [dbo].[Subscribers] WHERE [Name] = @Name) = 0 INSERT INTO [dbo].[Subscribers] ([Name], [LastReadAt], [LastReadEventId]) VALUES (@Name, GETUTCDATE(), (SELECT COALESCE(MAX([Id]), 0) FROM [dbo].[Events]))";
         private const string LastEventIdQuery = "SELECT [LastReadEventId] FROM [dbo].[Subscribers] WHERE [Name] = @Name";
-        private const string EventListQuery = "SELECT [Id], [Type], [Body], [Source], [PublishedAt] FROM [dbo].[Events] WHERE [Id] > @Id ORDER BY [PublishedAt]";
+        private const string EventListQuery = "SELECT [Id], [Type], [Body], [Source], [PublishedAt], [ConsistentHashKey] FROM [dbo].[Events] WHERE [Id] > @Id ORDER BY [PublishedAt]";
         private const string UpdateLastEventIdQuery = "UPDATE [dbo].[Subscribers] SET [LastReadEventId] = @LastReadEventId WHERE [Name] = @Name";
         private const string UpdateLastReadAtQuery = "UPDATE [dbo].[Subscribers] SET [LastReadAt] = @LastReadAt WHERE [Name] = @Name";
-        private const string InsertEventQuery = "INSERT INTO [dbo].[Events] ([Type], [Body], [Source], [PublishedAt]) VALUES (@Type, @Body, @Source, @PublishedAt)";
+        private const string InsertEventQuery = "INSERT INTO [dbo].[Events] ([Type], [Body], [Source], [PublishedAt], [ConsistentHashKey]) VALUES (@Type, @Body, @Source, @PublishedAt, @ConsistentHashKey)";
         private const string InsertLogQuery = "INSERT INTO [dbo].[Logs] ([EventId], [SubscriberName], [ProcessedAt], [Result], [Message]) VALUES (@EventId, @SubscriberName, @ProcessedAt, @Result, @Message)";
 
         public QueueDbAccessManager(string applicationName, string connectionString)
@@ -64,7 +64,7 @@ namespace Emerald.Queue
                 await command.ExecuteNonQueryAsync();
             }
         }
-        public async Task AddEvent(string type, string body)
+        public async Task AddEvent(string type, string body, string consistentHashKey)
         {
             using (var connection = new SqlConnection(_connectionString))
             using (var command = new SqlCommand(InsertEventQuery, connection))
@@ -73,6 +73,7 @@ namespace Emerald.Queue
                 command.Parameters.AddWithValue("@Body", body);
                 command.Parameters.AddWithValue("@Source", _applicationName);
                 command.Parameters.AddWithValue("@PublishedAt", DateTime.UtcNow);
+                command.Parameters.AddWithValue("@ConsistentHashKey", consistentHashKey);
                 await connection.OpenAsync();
                 await command.ExecuteNonQueryAsync();
             }
@@ -109,7 +110,8 @@ namespace Emerald.Queue
                                     var body = eventListReader.GetString(2);
                                     var source = eventListReader.GetString(3);
                                     var publishedAt = eventListReader.GetDateTime(4);
-                                    eventList.Add(new Event(id, type, body, source, publishedAt));
+                                    var consistentHashKey = await eventListReader.IsDBNullAsync(5) ? null : eventListReader.GetString(5);
+                                    eventList.Add(new Event(id, type, body, source, publishedAt, consistentHashKey));
                                 }
                             }
                         }

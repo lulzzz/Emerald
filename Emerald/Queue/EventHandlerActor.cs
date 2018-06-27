@@ -22,56 +22,53 @@ namespace Emerald.Queue
             _queueConfig = queueConfig;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
-            ReceiveAsync<Event[]>(Handle);
+            ReceiveAsync<Event>(Handle);
         }
 
-        private async Task Handle(Event[] eventArray)
+        private async Task Handle(Event @event)
         {
             var logger = Context.GetLogger();
 
-            foreach (var @event in eventArray)
+            try
             {
-                try
+                if (!_eventTypeDictionary.ContainsKey(@event.Type))
                 {
-                    if (!_eventTypeDictionary.ContainsKey(@event.Type))
+                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handler not registered.");
+                    return;
+                }
+
+                using (var scope = _serviceScopeFactory.CreateScope())
+                using (var transaction = _transactionScopeFactory.Create(scope))
+                {
+                    try
                     {
-                        await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handler not registered.");
-                        return;
+                        logger.Info($"Starting handle event '{@event.Id}:{@event.Type}'.");
+
+                        var eventType = _eventTypeDictionary[@event.Type];
+                        var eventObj = JsonConvert.DeserializeObject(@event.Body, eventType);
+
+                        foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
+                        {
+                            var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
+                            eventListener.Initialize();
+                            await eventListener.Handle(eventObj);
+                        }
+
+                        transaction.Commit();
+                        await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
+                        logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
                     }
-
-                    using (var scope = _serviceScopeFactory.CreateScope())
-                    using (var transaction = _transactionScopeFactory.Create(scope))
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            logger.Info($"Starting handle event '{@event.Id}:{@event.Type}'.");
-
-                            var eventType = _eventTypeDictionary[@event.Type];
-                            var eventObj = JsonConvert.DeserializeObject(@event.Body, eventType);
-
-                            foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
-                            {
-                                var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
-                                eventListener.Initialize();
-                                await eventListener.Handle(eventObj);
-                            }
-
-                            transaction.Commit();
-                            await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
-                            logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
-                        }
-                        catch (Exception ex)
-                        {
-                            transaction.Rollback();
-                            await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", ex.ToString());
-                            throw;
-                        }
+                        transaction.Rollback();
+                        await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", ex.ToString());
+                        throw;
                     }
                 }
-                catch (Exception ex)
-                {
-                    logger.Error(ex, $"Error on handling event '{@event.Id}:{@event.Type}'.");
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, $"Error on handling event '{@event.Id}:{@event.Type}'.");
             }
         }
     }
