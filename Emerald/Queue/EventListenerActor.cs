@@ -17,11 +17,10 @@ namespace Emerald.Queue
         {
             _eventHandlerActor = eventHandlerActor;
             _queueConfig = queueConfig;
-            Receive<string>(s => s == ListenCommand, s => Listen().PipeTo(Self));
-            Receive<string>(msg => msg == ScheduleNextListenCommand, msg => ScheduleNextListen());
+            ReceiveAsync<string>(s => s == ListenCommand, s => Listen());
         }
 
-        private async Task<string> Listen()
+        private async Task Listen()
         {
             var logger = Context.GetLogger();
 
@@ -35,12 +34,10 @@ namespace Emerald.Queue
                 }
 
                 var eventArray = await _queueConfig.QueueDbAccessManager.GetEvents();
-                if (eventArray.Length == 0) return ScheduleNextListenCommand;
-                logger.Info($"{eventArray.Length} event(s) received.");
-
-                foreach (var @event in eventArray)
+                if (eventArray.Length != 0)
                 {
-                    _eventHandlerActor.Tell(@event);
+                    logger.Info($"{eventArray.Length} event(s) received.");
+                    _eventHandlerActor.Tell(eventArray);
                 }
             }
             catch (Exception ex)
@@ -48,10 +45,6 @@ namespace Emerald.Queue
                 logger.Error(ex, "Error on listening events.");
             }
 
-            return ScheduleNextListenCommand;
-        }
-        private void ScheduleNextListen()
-        {
             Context.System.Scheduler.ScheduleTellOnce(TimeSpan.FromMilliseconds(_queueConfig.Interval), Self, ListenCommand, Self);
         }
     }
