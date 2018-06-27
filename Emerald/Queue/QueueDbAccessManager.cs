@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Emerald.Queue
 {
-    public sealed class QueueDbAccessManager
+    internal sealed class QueueDbAccessManager
     {
         private readonly string _applicationName;
         private readonly string _connectionString;

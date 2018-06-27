@@ -22,9 +22,9 @@ namespace Emerald.AspNetCore.Infrastructure
             _serviceCollection.AddScoped(type);
         }
 
-        public void AddScoped<TService, TImplementation>() where TImplementation : class, TService where TService : class
+        public void AddScoped(Type serviceType, Type implementationType)
         {
-            _serviceCollection.AddScoped<TService, TImplementation>();
+            _serviceCollection.AddScoped(serviceType, implementationType);
         }
 
         public IServiceProvider BuildServiceProvider()

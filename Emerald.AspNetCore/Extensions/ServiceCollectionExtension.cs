@@ -27,12 +27,12 @@ namespace Emerald.AspNetCore.Extensions
 
             var serviceCollection = new Infrastructure.ServiceCollection(services);
             var applicationName = applicationConfiguration.Environment.ApplicationName;
-            var emeraldSystemBuilder = new EmeraldSystemBuilder<TServiceScopeFactory, TTransactionScopeFactory>(applicationName, serviceCollection);
-            var emeraldOptions = new EmeraldOptions(emeraldSystemBuilder, applicationConfiguration);
+            var emeraldSystemBuilderConfig = EmeraldSystemBuilder.Create<TServiceScopeFactory, TTransactionScopeFactory>(applicationName, serviceCollection);
+            var emeraldOptions = new EmeraldOptions(emeraldSystemBuilderConfig, applicationConfiguration);
             options(emeraldOptions);
 
             Registry.EmeraldOptions = emeraldOptions;
-            Registry.EmeraldSystem = emeraldSystemBuilder.Build();
+            Registry.EmeraldSystem = emeraldSystemBuilderConfig.RegisterDependencies().Build();
 
             if (emeraldOptions.AuthenticationEnabled)
             {
