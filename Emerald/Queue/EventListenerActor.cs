@@ -1,5 +1,6 @@
 ﻿using Akka.Actor;
 using Akka.Event;
+using Emerald.Utils;
 using System;
 using System.Threading.Tasks;
 
@@ -36,12 +37,12 @@ namespace Emerald.Queue
 
                 var eventArray = await _queueConfig.QueueDbAccessManager.GetEvents();
                 if (eventArray.Length == 0) return ScheduleNextListenCommand;
-                logger.Info($"{eventArray.Length} event(s) received.");
+                logger.Info(LoggerHelper.CreateLogContent($"{eventArray.Length} event(s) received."));
                 foreach (var @event in eventArray) _eventHandlerActor.Tell(@event);
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Error on listening events.");
+                logger.Error(ex, LoggerHelper.CreateLogContent("Error on listening events."));
             }
 
             return ScheduleNextListenCommand;

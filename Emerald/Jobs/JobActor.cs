@@ -1,6 +1,7 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using Emerald.Abstractions;
+using Emerald.Utils;
 using System;
 using System.Threading.Tasks;
 
@@ -29,7 +30,7 @@ namespace Emerald.Jobs
         private async Task<string> ExecuteJob()
         {
             var logger = Context.GetLogger();
-            logger.Info($"Job '{_jobType.Name}' started.");
+            logger.Info(LoggerHelper.CreateLogContent($"Job '{_jobType.Name}' started."));
 
             using (var scope = _serviceScopeFactory.CreateScope())
             using (var transaction = _transactionScopeFactory.Create(scope))
@@ -44,11 +45,11 @@ namespace Emerald.Jobs
                 catch (Exception ex)
                 {
                     transaction.Rollback();
-                    logger.Error(ex, "Error on job execution.");
+                    logger.Error(ex, LoggerHelper.CreateLogContent("Error on job execution."));
                 }
             }
 
-            logger.Info($"Job '{_jobType.Name}' finished.");
+            logger.Info(LoggerHelper.CreateLogContent($"Job '{_jobType.Name}' finished."));
 
             return ScheduleJobCommand;
         }

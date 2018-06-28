@@ -1,6 +1,7 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using Emerald.Abstractions;
+using Emerald.Utils;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -42,7 +43,7 @@ namespace Emerald.Queue
                 {
                     try
                     {
-                        logger.Info($"Starting handle event '{@event.Id}:{@event.Type}'.");
+                        logger.Info(LoggerHelper.CreateLogContent($"Starting handle event '{@event.Id}:{@event.Type}'."));
 
                         var eventType = _eventTypeDictionary[@event.Type];
                         var eventObj = JsonConvert.DeserializeObject(@event.Body, eventType);
@@ -56,7 +57,7 @@ namespace Emerald.Queue
 
                         transaction.Commit();
                         await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
-                        logger.Info($"Event '{@event.Id}:{@event.Type}' handled.");
+                        logger.Info(LoggerHelper.CreateLogContent($"Event '{@event.Id}:{@event.Type}' handled."));
                     }
                     catch (Exception ex)
                     {
@@ -68,7 +69,7 @@ namespace Emerald.Queue
             }
             catch (Exception ex)
             {
-                logger.Error(ex, $"Error on handling event '{@event.Id}:{@event.Type}'.");
+                logger.Error(ex, LoggerHelper.CreateLogContent($"Error on handling event '{@event.Id}:{@event.Type}'."));
             }
         }
     }
