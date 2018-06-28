@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Emerald.Application;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -36,17 +37,17 @@ namespace Emerald.Utils
 
         private static object BuildHeaderLogObject(HttpHeaders headers)
         {
-            var dictionary = new Dictionary<string, List<string>>();
+            var dictionary = new Dictionary<string, string>();
 
             foreach (var header in headers)
             {
                 if (dictionary.ContainsKey(header.Key))
                 {
-                    dictionary[header.Key].AddRange(header.Value);
+                    dictionary[header.Key] = $"{dictionary[header.Key]}{(ValidationHelper.IsNullOrEmptyOrWhiteSpace(dictionary[header.Key]) ? "" : " ")}{string.Join(" ", header.Value)}";
                 }
                 else
                 {
-                    dictionary.Add(header.Key, new List<string>(header.Value));
+                    dictionary.Add(header.Key, string.Join(" ", header.Value));
                 }
             }
 
