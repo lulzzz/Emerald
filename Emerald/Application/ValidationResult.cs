@@ -1,44 +1,57 @@
-﻿namespace Emerald.Application
+﻿using Emerald.Common;
+
+namespace Emerald.Application
 {
     public sealed class ValidationResult
     {
-        private ValidationResult(ValidationResultType type, string errorMessage)
+        private readonly Error _error;
+        private readonly ValidationResultType _type;
+
+        private ValidationResult(Error error, ValidationResultType type)
         {
-            Type = type;
-            ErrorMessage = errorMessage;
+            _error = error;
+            _type = type;
         }
 
-        public ValidationResultType Type { get; }
-        public string ErrorMessage { get; }
-        public bool IsSuccess => Type == ValidationResultType.Success;
-        public bool IsError => Type == ValidationResultType.Error;
+        public bool IsSuccess => _type == ValidationResultType.Success;
+        public bool IsError => _type == ValidationResultType.Error;
 
-        public static ValidationResult Success() => new ValidationResult(ValidationResultType.Success, null);
-        public static ValidationResult Error(string errorMessage) => new ValidationResult(ValidationResultType.Error, errorMessage);
+        public Error GetError() => _error;
+
+        public static ValidationResult Success() => new ValidationResult(null, ValidationResultType.Success);
+        public static ValidationResult Error(string errorMessage) => new ValidationResult(new Error(null, errorMessage), ValidationResultType.Error);
+        public static ValidationResult Error(int errorCode, string errorMessage) => new ValidationResult(new Error(errorCode, errorMessage), ValidationResultType.Error);
+        public static ValidationResult Error(Error error) => new ValidationResult(error, ValidationResultType.Error);
     }
 
     public sealed class ValidationResult<TOutput> where TOutput : class
     {
-        private ValidationResult(ValidationResultType type, string errorMessage, TOutput output)
+        private readonly Error _error;
+        private readonly ValidationResultType _type;
+
+        private ValidationResult(Error error, TOutput output, ValidationResultType type)
         {
-            Type = type;
-            ErrorMessage = errorMessage;
+            _error = error;
             Output = output;
+            _type = type;
         }
 
-        public ValidationResultType Type { get; }
-        public string ErrorMessage { get; }
-        public TOutput Output { get; }
-        public bool IsSuccess => Type == ValidationResultType.Success;
-        public bool IsError => Type == ValidationResultType.Error;
+        public bool IsSuccess => _type == ValidationResultType.Success;
+        public bool IsError => _type == ValidationResultType.Error;
 
-        public static ValidationResult<TOutput> Success(TOutput output) => new ValidationResult<TOutput>(ValidationResultType.Success, null, output);
-        public static ValidationResult<TOutput> Error(string errorMessage) => new ValidationResult<TOutput>(ValidationResultType.Error, errorMessage, null);
+        public TOutput Output { get; }
+
+        public Error GetError() => _error;
+
+        public static ValidationResult<TOutput> Success(TOutput output) => new ValidationResult<TOutput>(null, output, ValidationResultType.Success);
+        public static ValidationResult<TOutput> Error(string errorMessage) => new ValidationResult<TOutput>(new Error(null, errorMessage), null, ValidationResultType.Error);
+        public static ValidationResult<TOutput> Error(int errorCode, string errorMessage) => new ValidationResult<TOutput>(new Error(errorCode, errorMessage), null, ValidationResultType.Error);
+        public static ValidationResult<TOutput> Error(Error error) => new ValidationResult<TOutput>(error, null, ValidationResultType.Error);
     }
 
     public enum ValidationResultType
     {
-        Success,
-        Error
+        Success = 0,
+        Error = 1
     }
 }

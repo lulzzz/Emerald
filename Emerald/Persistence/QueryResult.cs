@@ -5,13 +5,11 @@ namespace Emerald.Persistence
     public sealed class QueryResult<TOutput>
     {
         private readonly Error _error;
-        private readonly string _errorMessage;
         private readonly QueryResultType _type;
 
-        private QueryResult(Error error, string errorMessage, TOutput output, QueryResultType type)
+        private QueryResult(Error error, TOutput output, QueryResultType type)
         {
             _error = error;
-            _errorMessage = errorMessage;
             Output = output;
             _type = type;
         }
@@ -21,20 +19,20 @@ namespace Emerald.Persistence
         public bool IsError => _type == QueryResultType.Error;
         public bool IsFile => _type == QueryResultType.File;
 
-        public string ErrorMessage => _errorMessage ?? _error?.Message;
-        public object GetError() => _error ?? _errorMessage as object;
+        public object GetError() => _error;
         public TOutput Output { get; }
 
-        public static QueryResult<TOutput> Success(TOutput output) => new QueryResult<TOutput>(null, null, output, QueryResultType.Success);
-        public static QueryResult<TOutput> NotFound() => new QueryResult<TOutput>(null, null, default(TOutput), QueryResultType.NotFound);
-        public static QueryResult<TOutput> Error(string errorMessage) => new QueryResult<TOutput>(null, errorMessage, default(TOutput), QueryResultType.Error);
-        public static QueryResult<TOutput> Error(Error error) => new QueryResult<TOutput>(error, null, default(TOutput), QueryResultType.Error);
-        public static QueryResult<File> File(File file) => new QueryResult<File>(null, null, file, QueryResultType.File);
+        public static QueryResult<TOutput> Success(TOutput output) => new QueryResult<TOutput>(null, output, QueryResultType.Success);
+        public static QueryResult<TOutput> NotFound() => new QueryResult<TOutput>(null, default(TOutput), QueryResultType.NotFound);
+        public static QueryResult<TOutput> Error(string errorMessage) => new QueryResult<TOutput>(new Error(null, errorMessage), default(TOutput), QueryResultType.Error);
+        public static QueryResult<TOutput> Error(int errorCode, string errorMessage) => new QueryResult<TOutput>(new Error(errorCode, errorMessage), default(TOutput), QueryResultType.Error);
+        public static QueryResult<TOutput> Error(Error error) => new QueryResult<TOutput>(error, default(TOutput), QueryResultType.Error);
+        public static QueryResult<FileQueryResultOutput> File(byte[] content, string contentType, string fileName) => new QueryResult<FileQueryResultOutput>(null, new FileQueryResultOutput(content, contentType, fileName), QueryResultType.File);
     }
 
-    public sealed class File
+    public sealed class FileQueryResultOutput
     {
-        public File(byte[] content, string contentType, string fileName)
+        public FileQueryResultOutput(byte[] content, string contentType, string fileName)
         {
             Content = content;
             ContentType = contentType;
@@ -48,9 +46,9 @@ namespace Emerald.Persistence
 
     public enum QueryResultType
     {
-        Success,
-        NotFound,
-        Error,
-        File
+        Success = 0,
+        NotFound = 1,
+        Error = 2,
+        File = 3
     }
 }
