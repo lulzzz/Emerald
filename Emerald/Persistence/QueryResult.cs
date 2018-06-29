@@ -19,7 +19,7 @@ namespace Emerald.Persistence
         public bool IsError => _type == QueryResultType.Error;
         public bool IsFile => _type == QueryResultType.File;
 
-        public object GetError() => _error;
+        public Error GetError() => _error;
         public TOutput Output { get; }
 
         public static QueryResult<TOutput> Success(TOutput output) => new QueryResult<TOutput>(null, output, QueryResultType.Success);
