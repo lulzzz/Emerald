@@ -7,7 +7,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 
 namespace Emerald.AspNetCore.Infrastructure
 {
@@ -34,16 +33,16 @@ namespace Emerald.AspNetCore.Infrastructure
         }
         public void OnActionExecuted(ActionExecutedContext context)
         {
-            var requestInfo = CreateRequestInfo(context);
-            var responseInfo = CreateResponseInfo(context);
             var isError = context.Exception != null && !context.ExceptionHandled;
 
-            var messageBuilder = new StringBuilder();
-            messageBuilder.AppendLine(isError ? "New request handled with error." : "New request handled.");
-            messageBuilder.AppendLine(requestInfo);
-            messageBuilder.AppendLine(responseInfo);
+            var log = new
+            {
+                message = isError ? "Request handled with error." : "Request handled.",
+                request = CreateRequestLogObject(context),
+                response = CreateResponseLogObject(context)
+            };
 
-            var message = messageBuilder.ToString();
+            var message = JsonConvert.SerializeObject(log, Formatting.Indented);
 
             if (isError)
             {
@@ -55,38 +54,39 @@ namespace Emerald.AspNetCore.Infrastructure
             }
         }
 
-        private string CreateRequestInfo(ActionExecutedContext context)
+        private object CreateRequestLogObject(ActionExecutedContext context)
         {
-            var info = $"{context.HttpContext.Request.Method} {context.HttpContext.Request.Path}{context.HttpContext.Request.QueryString}";
+            var method = context.HttpContext.Request.Method;
+            var uri = $"{context.HttpContext.Request.Path}{context.HttpContext.Request.QueryString}";
+
+            string content = null;
 
             if (context.HttpContext.Request.Method != HttpMethod.Get.ToString() && (context.HttpContext.Request.ContentType?.Contains("application/json") ?? false))
             {
                 context.HttpContext.Request.Body.Position = 0;
-                info += $" {new StreamReader(context.HttpContext.Request.Body).ReadToEnd()}";
+                content = $"{new StreamReader(context.HttpContext.Request.Body).ReadToEnd()}";
             }
 
-            info = "Request: " + info;
-
-            return info;
+            return new { method, uri, content };
         }
-        private string CreateResponseInfo(ActionExecutedContext context)
+        private object CreateResponseLogObject(ActionExecutedContext context)
         {
-            var info = string.Empty;
+            int? statusCode = null;
+            object content = null;
 
             if (context.Result is ObjectResult objectResult)
             {
-                info += $"{objectResult.StatusCode}";
-                if (objectResult.StatusCode < 200 || objectResult.StatusCode >= 300 && objectResult.Value != null) info += $", {JsonConvert.SerializeObject(objectResult.Value)}";
+                statusCode = objectResult.StatusCode;
+                if (objectResult.StatusCode < 200 || objectResult.StatusCode >= 300 && objectResult.Value != null) content = objectResult.Value;
             }
             else if (context.Result is StatusCodeResult statusCodeResult)
             {
-                info += $"{statusCodeResult.StatusCode}";
+                statusCode = statusCodeResult.StatusCode;
             }
 
-            info += $"{(info == string.Empty ? string.Empty : ", ")}{(DateTime.UtcNow - _startedAt).TotalMilliseconds}ms";
-            info = "Response: " + info;
+            var responseTime = $"{(DateTime.UtcNow - _startedAt).TotalMilliseconds}ms";
 
-            return info;
+            return new { statusCode, content, responseTime };
         }
     }
 }

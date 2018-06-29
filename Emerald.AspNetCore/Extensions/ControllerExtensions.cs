@@ -18,7 +18,7 @@ namespace Emerald.AspNetCore.Extensions
             if (operationResult.IsCreated) return new CreatedResult(location, null);
             if (operationResult.IsDeleted) return new NoContentResult();
             if (operationResult.IsNotFound) return new NotFoundResult();
-            if (operationResult.IsError) return new BadRequestObjectResult(operationResult.GetError());
+            if (operationResult.IsError) return new BadRequestObjectResult(operationResult.GetError().Code.HasValue ? (object)operationResult.GetError() : new { operationResult.GetError().Message });
             if (operationResult.IsPaymentRequired) return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
             if (operationResult.IsForbidden) return new StatusCodeResult(StatusCodes.Status403Forbidden);
             if (operationResult.IsUnauthorized) return new StatusCodeResult(StatusCodes.Status401Unauthorized);
@@ -42,13 +42,12 @@ namespace Emerald.AspNetCore.Extensions
             if (operationResult.IsCreated) return new CreatedResult(location, viewModelFactory(operationResult.Output));
             if (operationResult.IsDeleted) return operationResult.Output == null ? (IActionResult)new NoContentResult() : new OkObjectResult(viewModelFactory(operationResult.Output));
             if (operationResult.IsNotFound) return new NotFoundResult();
-            if (operationResult.IsError) return new BadRequestObjectResult(operationResult.GetError());
+            if (operationResult.IsError) return new BadRequestObjectResult(operationResult.GetError().Code.HasValue ? (object)operationResult.GetError() : new { operationResult.GetError().Message });
             if (operationResult.IsPaymentRequired) return new StatusCodeResult(StatusCodes.Status402PaymentRequired);
             if (operationResult.IsForbidden) return new StatusCodeResult(StatusCodes.Status403Forbidden);
             if (operationResult.IsUnauthorized) return new StatusCodeResult(StatusCodes.Status401Unauthorized);
             throw new NotSupportedException();
         }
-
         public static IActionResult QueryResult<TResult>(this Controller controller, QueryResult<TResult> queryResult)
         {
             return QueryResult(controller, queryResult, r => r);
@@ -57,10 +56,14 @@ namespace Emerald.AspNetCore.Extensions
         {
             if (queryResult.IsSuccess) return new OkObjectResult(queryResult.Output == null ? (object)null : viewModelFactory(queryResult.Output));
             if (queryResult.IsNotFound) return new NotFoundResult();
-            if (queryResult.IsError) return new BadRequestObjectResult(queryResult.GetError());
+            if (queryResult.IsError)
+            {
+                var error = queryResult.GetError();
+                return new BadRequestObjectResult(error.Code.HasValue ? (object)error : new { error.Message });
+            }
             if (queryResult.IsFile)
             {
-                var file = queryResult.Output as File;
+                var file = queryResult.Output as FileQueryResultOutput;
                 return new FileContentResult(file?.Content, file?.ContentType) { FileDownloadName = file?.FileName };
             }
             throw new NotSupportedException();

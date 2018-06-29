@@ -1,5 +1,6 @@
 ﻿using Emerald.AspNetCore.Configuration;
 using Emerald.AspNetCore.Persistence;
+using Emerald.Utils;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -65,7 +66,7 @@ namespace Emerald.AspNetCore
                     }
                     catch (Exception ex)
                     {
-                        Log.Logger.Error("Error on migrating database.", ex);
+                        Log.Logger.Error(LoggerHelper.CreateLogContent("Error on migrating database."), ex);
                     }
                 }
             }
@@ -87,7 +88,7 @@ namespace Emerald.AspNetCore
                     catch (Exception ex)
                     {
                         transaction.Rollback();
-                        Log.Logger.Error("Error on running seed.", ex);
+                        Log.Logger.Error(LoggerHelper.CreateLogContent("Error on running seed."), ex);
                     }
                 }
             }
