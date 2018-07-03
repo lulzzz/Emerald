@@ -34,7 +34,7 @@ namespace Emerald.Queue
             {
                 if (!_eventTypeDictionary.ContainsKey(@event.Type))
                 {
-                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handler not registered.");
+                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Missed", "Event handler not registered.");
                     return;
                 }
 
