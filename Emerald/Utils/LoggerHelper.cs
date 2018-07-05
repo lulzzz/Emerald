@@ -1,5 +1,6 @@
 ﻿using Emerald.Application;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -12,6 +13,10 @@ namespace Emerald.Utils
         public static string CreateLogContent(string message)
         {
             return JsonConvert.SerializeObject(new { message }, Formatting.Indented);
+        }
+        public static string CreateLogContent(string message, Exception exception)
+        {
+            return JsonConvert.SerializeObject(new { message, exception = exception.ToString() }, Formatting.Indented);
         }
         public static async Task<string> CreateLogContent(string message, object parameters, HttpResponseMessage responseMessage)
         {
