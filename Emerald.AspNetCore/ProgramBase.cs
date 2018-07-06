@@ -23,17 +23,12 @@ namespace Emerald.AspNetCore
             ConfiguringDatabase(configuration);
 
             var builder = WebHost.CreateDefaultBuilder(args).UseStartup<TStartup>().UseSerilog();
-            ConfiguringApplicationInsights(builder, configuration);
             ConfiguringDevelopmentHost(builder, configuration);
 
             var host = builder.Build();
             host.Run();
         }
 
-        private static void ConfiguringApplicationInsights(IWebHostBuilder builder, ApplicationConfiguration configuration)
-        {
-            if (configuration.Environment.ApplicationInsights.Enabled) builder.UseApplicationInsights(configuration.Environment.ApplicationInsights.Key);
-        }
         private static void ConfiguringLogging(ApplicationConfiguration configuration)
         {
             var environmentName = configuration.Environment.Name;

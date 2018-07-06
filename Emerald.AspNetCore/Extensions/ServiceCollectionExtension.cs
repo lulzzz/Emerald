@@ -2,6 +2,7 @@
 using Emerald.AspNetCore.Common;
 using Emerald.AspNetCore.Configuration;
 using Emerald.AspNetCore.Infrastructure;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +34,12 @@ namespace Emerald.AspNetCore.Extensions
 
             Registry.EmeraldOptions = emeraldOptions;
             Registry.EmeraldSystem = emeraldSystemBuilderConfig.RegisterDependencies().Build();
+
+            if (applicationConfiguration.Environment.ApplicationInsights.Enabled)
+            {
+                services.AddSingleton<ITelemetryInitializer>(new TelemetryInitializer(applicationConfiguration.Environment.ApplicationName));
+                services.AddApplicationInsightsTelemetry(applicationConfiguration.Environment.ApplicationInsights.Key);
+            }
 
             if (emeraldOptions.AuthenticationEnabled)
             {
