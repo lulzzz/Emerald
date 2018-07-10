@@ -86,7 +86,7 @@ namespace Emerald.AspNetCore.Infrastructure
 
             var responseTime = $"{(DateTime.UtcNow - _startedAt).TotalMilliseconds}ms";
 
-            return new { statusCode, content, responseTime };
+            return content == null ? (object)new { statusCode, responseTime } : new { statusCode, content, responseTime };
         }
     }
 }
