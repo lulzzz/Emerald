@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Http.Internal;
+﻿using Emerald.AspNetCore.Configuration;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
@@ -12,11 +14,13 @@ namespace Emerald.AspNetCore.Infrastructure
 {
     internal sealed class LoggerActionFilter : IActionFilter
     {
+        private readonly IApplicationConfiguration _applicationConfiguration;
         private readonly ILogger<LoggerActionFilter> _logger;
         private DateTime _startedAt;
 
-        public LoggerActionFilter(ILogger<LoggerActionFilter> logger)
+        public LoggerActionFilter(IApplicationConfiguration applicationConfiguration, ILogger<LoggerActionFilter> logger)
         {
+            _applicationConfiguration = applicationConfiguration;
             _logger = logger;
         }
 
@@ -78,6 +82,7 @@ namespace Emerald.AspNetCore.Infrastructure
             {
                 statusCode = objectResult.StatusCode;
                 if (objectResult.StatusCode < 200 || objectResult.StatusCode >= 300 && objectResult.Value != null) content = objectResult.Value;
+                if (string.Equals(_applicationConfiguration.Environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase)) content = objectResult.Value;
             }
             else if (context.Result is StatusCodeResult statusCodeResult)
             {
