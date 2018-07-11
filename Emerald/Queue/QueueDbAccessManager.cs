@@ -38,132 +38,174 @@ namespace Emerald.Queue
             connectionStringBuilder.InitialCatalog = "master";
             var createDbQuery = string.Format(CreateDbQuery, dbName);
 
-            using (var connection = new SqlConnection(connectionStringBuilder.ConnectionString))
-            using (var createDbCommand = new SqlCommand(createDbQuery, connection))
+            await ExecuteWithRetry(async () =>
             {
-                await connection.OpenAsync();
-                await createDbCommand.ExecuteNonQueryAsync();
-            }
+                using (var connection = new SqlConnection(connectionStringBuilder.ConnectionString))
+                using (var createDbCommand = new SqlCommand(createDbQuery, connection))
+                {
+                    await connection.OpenAsync();
+                    await createDbCommand.ExecuteNonQueryAsync();
+                }
+            });
 
-            using (var connection = new SqlConnection(_connectionString))
-            using (var createEventTableCommand = new SqlCommand(CreateEventTableQuery, connection))
-            using (var createEventTableIndexCommand = new SqlCommand(CreateEventTableIndexQuery, connection))
-            using (var createSubscriberTableCommand = new SqlCommand(CreateSubscriberTableQuery, connection))
-            using (var createLogTableCommand = new SqlCommand(CreateLogTableQuery, connection))
-            using (var createLogTableIndexCommand = new SqlCommand(CreateLogTableIndexQuery, connection))
+            await ExecuteWithRetry(async () =>
             {
-                await connection.OpenAsync();
-                await createEventTableCommand.ExecuteNonQueryAsync();
-                await createEventTableIndexCommand.ExecuteNonQueryAsync();
-                await createSubscriberTableCommand.ExecuteNonQueryAsync();
-                await createLogTableCommand.ExecuteNonQueryAsync();
-                await createLogTableIndexCommand.ExecuteNonQueryAsync();
-            }
+                using (var connection = new SqlConnection(_connectionString))
+                using (var createEventTableCommand = new SqlCommand(CreateEventTableQuery, connection))
+                using (var createEventTableIndexCommand = new SqlCommand(CreateEventTableIndexQuery, connection))
+                using (var createSubscriberTableCommand = new SqlCommand(CreateSubscriberTableQuery, connection))
+                using (var createLogTableCommand = new SqlCommand(CreateLogTableQuery, connection))
+                using (var createLogTableIndexCommand = new SqlCommand(CreateLogTableIndexQuery, connection))
+                {
+                    await connection.OpenAsync();
+                    await createEventTableCommand.ExecuteNonQueryAsync();
+                    await createEventTableIndexCommand.ExecuteNonQueryAsync();
+                    await createSubscriberTableCommand.ExecuteNonQueryAsync();
+                    await createLogTableCommand.ExecuteNonQueryAsync();
+                    await createLogTableIndexCommand.ExecuteNonQueryAsync();
+                }
+            });
         }
         public async Task RegisterSubscriberIfNeeded()
         {
-            using (var connection = new SqlConnection(_connectionString))
-            using (var command = new SqlCommand(RegisterSubscriberQuery, connection))
+            await ExecuteWithRetry(async () =>
             {
-                command.Parameters.AddWithValue("@Name", _applicationName);
-                await connection.OpenAsync();
-                await command.ExecuteNonQueryAsync();
-            }
+                using (var connection = new SqlConnection(_connectionString))
+                using (var command = new SqlCommand(RegisterSubscriberQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@Name", _applicationName);
+                    await connection.OpenAsync();
+                    await command.ExecuteNonQueryAsync();
+                }
+            });
         }
         public async Task AddEvent(string type, string body, string consistentHashKey)
         {
-            using (var connection = new SqlConnection(_connectionString))
-            using (var command = new SqlCommand(InsertEventQuery, connection))
+            await ExecuteWithRetry(async () =>
             {
-                command.Parameters.AddWithValue("@Type", type);
-                command.Parameters.AddWithValue("@Body", body);
-                command.Parameters.AddWithValue("@Source", _applicationName);
-                command.Parameters.AddWithValue("@PublishedAt", DateTime.UtcNow);
-                command.Parameters.AddWithValue("@ConsistentHashKey", consistentHashKey);
-                await connection.OpenAsync();
-                await command.ExecuteNonQueryAsync();
-            }
+                using (var connection = new SqlConnection(_connectionString))
+                using (var command = new SqlCommand(InsertEventQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@Type", type);
+                    command.Parameters.AddWithValue("@Body", body);
+                    command.Parameters.AddWithValue("@Source", _applicationName);
+                    command.Parameters.AddWithValue("@PublishedAt", DateTime.UtcNow);
+                    command.Parameters.AddWithValue("@ConsistentHashKey", consistentHashKey);
+                    await connection.OpenAsync();
+                    await command.ExecuteNonQueryAsync();
+                }
+            });
         }
         public async Task<Event[]> GetEvents()
         {
-            using (var connection = new SqlConnection(_connectionString))
+            return await ExecuteWithRetry(async () =>
             {
-                await connection.OpenAsync();
-
-                using (var transaction = connection.BeginTransaction())
+                using (var connection = new SqlConnection(_connectionString))
                 {
-                    try
-                    {
-                        long lastEventId;
-                        using (var lastEventIdCommand = new SqlCommand(LastEventIdQuery, connection, transaction))
-                        {
-                            lastEventIdCommand.Parameters.AddWithValue("@Name", _applicationName);
-                            var lastEventIdCommandResult = await lastEventIdCommand.ExecuteScalarAsync();
-                            lastEventId = Convert.ToInt64(lastEventIdCommandResult);
-                        }
+                    await connection.OpenAsync();
 
-                        List<Event> eventList;
-                        using (var eventListCommand = new SqlCommand(EventListQuery, connection, transaction))
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
                         {
-                            eventListCommand.Parameters.AddWithValue("@Id", lastEventId);
-                            using (var eventListReader = await eventListCommand.ExecuteReaderAsync())
+                            long lastEventId;
+                            using (var lastEventIdCommand = new SqlCommand(LastEventIdQuery, connection, transaction))
                             {
-                                eventList = new List<Event>();
-                                while (await eventListReader.ReadAsync())
+                                lastEventIdCommand.Parameters.AddWithValue("@Name", _applicationName);
+                                var lastEventIdCommandResult = await lastEventIdCommand.ExecuteScalarAsync();
+                                lastEventId = Convert.ToInt64(lastEventIdCommandResult);
+                            }
+
+                            List<Event> eventList;
+                            using (var eventListCommand = new SqlCommand(EventListQuery, connection, transaction))
+                            {
+                                eventListCommand.Parameters.AddWithValue("@Id", lastEventId);
+                                using (var eventListReader = await eventListCommand.ExecuteReaderAsync())
                                 {
-                                    var id = eventListReader.GetInt32(0);
-                                    var type = eventListReader.GetString(1);
-                                    var body = eventListReader.GetString(2);
-                                    var source = eventListReader.GetString(3);
-                                    var publishedAt = eventListReader.GetDateTime(4);
-                                    var consistentHashKey = await eventListReader.IsDBNullAsync(5) ? null : eventListReader.GetString(5);
-                                    eventList.Add(new Event(id, type, body, source, publishedAt, consistentHashKey));
+                                    eventList = new List<Event>();
+                                    while (await eventListReader.ReadAsync())
+                                    {
+                                        var id = eventListReader.GetInt32(0);
+                                        var type = eventListReader.GetString(1);
+                                        var body = eventListReader.GetString(2);
+                                        var source = eventListReader.GetString(3);
+                                        var publishedAt = eventListReader.GetDateTime(4);
+                                        var consistentHashKey = await eventListReader.IsDBNullAsync(5) ? null : eventListReader.GetString(5);
+                                        eventList.Add(new Event(id, type, body, source, publishedAt, consistentHashKey));
+                                    }
                                 }
                             }
-                        }
 
-                        if (eventList.Count > 0)
-                        {
-                            lastEventId = eventList.Max(i => i.Id);
-                            using (var updateLastEventIdCommand = new SqlCommand(UpdateLastEventIdQuery, connection, transaction))
+                            if (eventList.Count > 0)
                             {
-                                updateLastEventIdCommand.Parameters.AddWithValue("@LastReadEventId", lastEventId);
-                                updateLastEventIdCommand.Parameters.AddWithValue("@Name", _applicationName);
-                                await updateLastEventIdCommand.ExecuteNonQueryAsync();
+                                lastEventId = eventList.Max(i => i.Id);
+                                using (var updateLastEventIdCommand = new SqlCommand(UpdateLastEventIdQuery, connection, transaction))
+                                {
+                                    updateLastEventIdCommand.Parameters.AddWithValue("@LastReadEventId", lastEventId);
+                                    updateLastEventIdCommand.Parameters.AddWithValue("@Name", _applicationName);
+                                    await updateLastEventIdCommand.ExecuteNonQueryAsync();
+                                }
                             }
-                        }
 
-                        using (var updateLastReadAtCommand = new SqlCommand(UpdateLastReadAtQuery, connection, transaction))
+                            using (var updateLastReadAtCommand = new SqlCommand(UpdateLastReadAtQuery, connection, transaction))
+                            {
+                                updateLastReadAtCommand.Parameters.AddWithValue("@LastReadAt", DateTime.UtcNow);
+                                updateLastReadAtCommand.Parameters.AddWithValue("@Name", _applicationName);
+                                await updateLastReadAtCommand.ExecuteNonQueryAsync();
+                            }
+
+                            transaction.Commit();
+
+                            return eventList.ToArray();
+                        }
+                        catch
                         {
-                            updateLastReadAtCommand.Parameters.AddWithValue("@LastReadAt", DateTime.UtcNow);
-                            updateLastReadAtCommand.Parameters.AddWithValue("@Name", _applicationName);
-                            await updateLastReadAtCommand.ExecuteNonQueryAsync();
+                            transaction.Rollback();
+                            throw;
                         }
-
-                        transaction.Commit();
-
-                        return eventList.ToArray();
-                    }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
                     }
                 }
-            }
+            });
         }
         public async Task AddLog(long eventId, string result, string message)
         {
-            using (var connection = new SqlConnection(_connectionString))
-            using (var command = new SqlCommand(InsertLogQuery, connection))
+            await ExecuteWithRetry(async () =>
             {
-                command.Parameters.AddWithValue("@EventId", eventId);
-                command.Parameters.AddWithValue("@SubscriberName", _applicationName);
-                command.Parameters.AddWithValue("@ProcessedAt", DateTime.UtcNow);
-                command.Parameters.AddWithValue("@Result", result);
-                command.Parameters.AddWithValue("@Message", message);
-                await connection.OpenAsync();
-                await command.ExecuteNonQueryAsync();
+                using (var connection = new SqlConnection(_connectionString))
+                using (var command = new SqlCommand(InsertLogQuery, connection))
+                {
+                    command.Parameters.AddWithValue("@EventId", eventId);
+                    command.Parameters.AddWithValue("@SubscriberName", _applicationName);
+                    command.Parameters.AddWithValue("@ProcessedAt", DateTime.UtcNow);
+                    command.Parameters.AddWithValue("@Result", result);
+                    command.Parameters.AddWithValue("@Message", message);
+                    await connection.OpenAsync();
+                    await command.ExecuteNonQueryAsync();
+                }
+            });
+        }
+
+        private async Task ExecuteWithRetry(Func<Task> action, int retryCount = 3, int delay = 3000)
+        {
+            await ExecuteWithRetry<object>(async () => { await action(); return null; }, retryCount, delay);
+        }
+        private async Task<TResult> ExecuteWithRetry<TResult>(Func<Task<TResult>> action, int retryCount = 3, int delay = 3000)
+        {
+            var retry = 1;
+
+            while (true)
+            {
+                try
+                {
+                    return await action();
+                }
+                catch
+                {
+                    if (retry > retryCount) throw;
+                    retry++;
+                }
+
+                await Task.Delay(delay);
             }
         }
     }

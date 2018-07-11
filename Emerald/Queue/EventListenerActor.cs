@@ -42,7 +42,7 @@ namespace Emerald.Queue
             }
             catch (Exception ex)
             {
-                logger.Warning(LoggerHelper.CreateLogContent("Error on listening events.", ex));
+                logger.Error(LoggerHelper.CreateLogContent("Error on listening events.", ex));
             }
 
             return ScheduleNextListenCommand;

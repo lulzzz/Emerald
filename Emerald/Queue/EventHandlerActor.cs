@@ -30,6 +30,8 @@ namespace Emerald.Queue
         {
             var logger = Context.GetLogger();
 
+            logger.Info(LoggerHelper.CreateLogContent($"Starting handle event '{@event.Id}:{@event.Type}'."));
+
             try
             {
                 if (!_eventTypeDictionary.ContainsKey(@event.Type))
@@ -38,13 +40,13 @@ namespace Emerald.Queue
                     return;
                 }
 
+                Exception exception = null;
+
                 using (var scope = _serviceScopeFactory.CreateScope())
                 using (var transaction = _transactionScopeFactory.Create(scope))
                 {
                     try
                     {
-                        logger.Info(LoggerHelper.CreateLogContent($"Starting handle event '{@event.Id}:{@event.Type}'."));
-
                         var eventType = _eventTypeDictionary[@event.Type];
                         var eventObj = JsonConvert.DeserializeObject(@event.Body, eventType);
 
@@ -56,15 +58,23 @@ namespace Emerald.Queue
                         }
 
                         transaction.Commit();
-                        await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
+
                         logger.Info(LoggerHelper.CreateLogContent($"Event '{@event.Id}:{@event.Type}' handled."));
                     }
                     catch (Exception ex)
                     {
                         transaction.Rollback();
-                        await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", ex.ToString());
-                        throw;
+                        exception = ex;
                     }
+                }
+
+                if (exception == null)
+                {
+                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
+                }
+                else
+                {
+                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", exception.ToString());
                 }
             }
             catch (Exception ex)
