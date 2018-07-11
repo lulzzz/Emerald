@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Emerald.Utils;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
@@ -38,7 +39,7 @@ namespace Emerald.Queue
             connectionStringBuilder.InitialCatalog = "master";
             var createDbQuery = string.Format(CreateDbQuery, dbName);
 
-            await ExecuteWithRetry(async () =>
+            await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(connectionStringBuilder.ConnectionString))
                 using (var createDbCommand = new SqlCommand(createDbQuery, connection))
@@ -48,7 +49,7 @@ namespace Emerald.Queue
                 }
             });
 
-            await ExecuteWithRetry(async () =>
+            await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(_connectionString))
                 using (var createEventTableCommand = new SqlCommand(CreateEventTableQuery, connection))
@@ -68,7 +69,7 @@ namespace Emerald.Queue
         }
         public async Task RegisterSubscriberIfNeeded()
         {
-            await ExecuteWithRetry(async () =>
+            await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(_connectionString))
                 using (var command = new SqlCommand(RegisterSubscriberQuery, connection))
@@ -81,7 +82,7 @@ namespace Emerald.Queue
         }
         public async Task AddEvent(string type, string body, string consistentHashKey)
         {
-            await ExecuteWithRetry(async () =>
+            await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(_connectionString))
                 using (var command = new SqlCommand(InsertEventQuery, connection))
@@ -98,7 +99,7 @@ namespace Emerald.Queue
         }
         public async Task<Event[]> GetEvents()
         {
-            return await ExecuteWithRetry(async () =>
+            return await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(_connectionString))
                 {
@@ -169,7 +170,7 @@ namespace Emerald.Queue
         }
         public async Task AddLog(long eventId, string result, string message)
         {
-            await ExecuteWithRetry(async () =>
+            await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(_connectionString))
                 using (var command = new SqlCommand(InsertLogQuery, connection))
@@ -183,30 +184,6 @@ namespace Emerald.Queue
                     await command.ExecuteNonQueryAsync();
                 }
             });
-        }
-
-        private async Task ExecuteWithRetry(Func<Task> action, int retryCount = 3, int delay = 3000)
-        {
-            await ExecuteWithRetry<object>(async () => { await action(); return null; }, retryCount, delay);
-        }
-        private async Task<TResult> ExecuteWithRetry<TResult>(Func<Task<TResult>> action, int retryCount = 3, int delay = 3000)
-        {
-            var retry = 1;
-
-            while (true)
-            {
-                try
-                {
-                    return await action();
-                }
-                catch
-                {
-                    if (retry > retryCount) throw;
-                    retry++;
-                }
-
-                await Task.Delay(delay);
-            }
         }
     }
 }
