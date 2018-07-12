@@ -5,10 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using Emerald.Utils;
 
 namespace Emerald.AspNetCore.Infrastructure
 {
@@ -46,7 +48,7 @@ namespace Emerald.AspNetCore.Infrastructure
                 response = CreateResponseLogObject(context)
             };
 
-            var message = JsonConvert.SerializeObject(log, Formatting.Indented);
+            var message = JsonConvert.SerializeObject(log, Formatting.Indented, LoggerHelper.JsonSerializerSettings);
 
             if (isError)
             {
