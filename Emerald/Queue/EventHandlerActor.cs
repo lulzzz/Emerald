@@ -2,7 +2,6 @@
 using Akka.Event;
 using Emerald.Abstractions;
 using Emerald.Utils;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,7 +48,7 @@ namespace Emerald.Queue
                     try
                     {
                         var eventType = _eventTypeDictionary[@event.Type];
-                        var eventObj = JsonConvert.DeserializeObject(@event.Body, eventType);
+                        var eventObj = JsonHelper.Deserialize(@event.Body, eventType);
 
                         foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
                         {

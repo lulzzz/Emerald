@@ -15,15 +15,15 @@ namespace Emerald.Utils
 
         public static string CreateLogContent(string message)
         {
-            return JsonConvert.SerializeObject(new { message }, Formatting.Indented, JsonSerializerSettings);
+            return JsonHelper.Serialize(new { message });
         }
         public static string CreateLogContent(string message, Exception exception)
         {
-            return JsonConvert.SerializeObject(new { message, exception = exception.ToString() }, Formatting.Indented, JsonSerializerSettings);
+            return JsonHelper.Serialize(new { message, exception = exception.ToString() });
         }
         public static async Task<string> CreateLogContent(string message, object parameters, HttpResponseMessage responseMessage)
         {
-            return JsonConvert.SerializeObject(new
+            return JsonHelper.Serialize(new
             {
                 message,
                 parameters,
@@ -40,7 +40,7 @@ namespace Emerald.Utils
                     content = responseMessage.Content != null ? await responseMessage.Content.ReadAsStringAsync() : string.Empty,
                     headers = BuildHeaderLogObject(responseMessage.Headers)
                 }
-            }, Formatting.Indented, JsonSerializerSettings);
+            });
         }
 
         private static object BuildHeaderLogObject(HttpHeaders headers)

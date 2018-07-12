@@ -11,6 +11,7 @@ using System.IO;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using Emerald.Utils;
 
 namespace Emerald.AspNetCore.Infrastructure
 {
@@ -45,13 +46,13 @@ namespace Emerald.AspNetCore.Infrastructure
             context.Request.Body.Position = 0;
             var requestBody = $" {new StreamReader(context.Request.Body).ReadToEnd()}";
 
-            var authenticationRequestBody = JsonConvert.DeserializeObject<AuthenticationRequestBody>(requestBody);
+            var authenticationRequestBody = JsonHelper.Deserialize<AuthenticationRequestBody>(requestBody);
             if (authenticationRequestBody == null) return WriteBadRequest(context, null, startedAt);
             if (authenticationRequestBody.UserName == null) return WriteBadRequest(context, "'userName' value is required.", startedAt);
             if (authenticationRequestBody.Password == null) return WriteBadRequest(context, "'password' value is required.", startedAt);
 
             var operationResult = _authenticationService.Authenticate(authenticationRequestBody.UserName, authenticationRequestBody.Password);
-            if (operationResult.IsError) return WriteBadRequest(context, JsonConvert.SerializeObject(operationResult.GetError()), startedAt);
+            if (operationResult.IsError) return WriteBadRequest(context, JsonHelper.Serialize(operationResult.GetError()), startedAt);
             if (operationResult.IsNotFound) return WriteUnauthorized(context, startedAt);
 
             var symmetricSecurityKeyFilePath = _configuration.Environment.Jwt.Key;
@@ -62,7 +63,7 @@ namespace Emerald.AspNetCore.Infrastructure
             var claims = new[]
             {
                 new Claim("userId", operationResult.Output.UserId.ToString()),
-                new Claim("context", JsonConvert.SerializeObject(operationResult.Output.Context))
+                new Claim("context", operationResult.Output.Context?.ToJson())
             };
 
             var token = new JwtSecurityToken(claims: claims, signingCredentials: signingCredentials);
@@ -86,7 +87,7 @@ namespace Emerald.AspNetCore.Infrastructure
         private async Task WriteOk(HttpContext context, object token, DateTime startedAt)
         {
             context.Response.StatusCode = StatusCodes.Status200OK;
-            await context.Response.WriteAsync(JsonConvert.SerializeObject(token));
+            await context.Response.WriteAsync(token?.ToJson());
             Log(context, null, startedAt);
         }
 

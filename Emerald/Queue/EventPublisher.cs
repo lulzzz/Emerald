@@ -1,4 +1,5 @@
 ﻿using Akka.Routing;
+using Emerald.Utils;
 using Newtonsoft.Json;
 using System;
 using System.Threading.Tasks;
@@ -18,7 +19,10 @@ namespace Emerald.Queue
         {
             if (@event == null) throw new ArgumentNullException(nameof(@event));
             if (_queueDbAccessManager == null) return;
-            await _queueDbAccessManager.AddEvent(@event.GetType().Name, JsonConvert.SerializeObject(@event), @event is IConsistentHashable consistentHashable ? consistentHashable.ConsistentHashKey?.ToString() : null);
+            var type = @event.GetType().Name;
+            var body = JsonHelper.Serialize(@event, Formatting.None);
+            var consistentHashKey = @event is IConsistentHashable consistentHashable ? consistentHashable.ConsistentHashKey?.ToString() : null;
+            await _queueDbAccessManager.AddEvent(type, body, consistentHashKey);
         }
 
         public static async Task<IEventPublisher> Create(string applicationName, string connectionString)

@@ -1,16 +1,14 @@
 ﻿using Emerald.AspNetCore.Configuration;
+using Emerald.Utils;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using Emerald.Utils;
 
 namespace Emerald.AspNetCore.Infrastructure
 {
@@ -48,7 +46,7 @@ namespace Emerald.AspNetCore.Infrastructure
                 response = CreateResponseLogObject(context)
             };
 
-            var message = JsonConvert.SerializeObject(log, Formatting.Indented, LoggerHelper.JsonSerializerSettings);
+            var message = JsonHelper.Serialize(log);
 
             if (isError)
             {
