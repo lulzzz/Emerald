@@ -3,9 +3,9 @@ using System;
 
 namespace Emerald.Queue
 {
-    public sealed class Event : IConsistentHashable
+    internal sealed class Event : IConsistentHashable
     {
-        public Event(long id, string type, string body, string source, DateTime publishedAt, string consistentHashKey)
+        public Event(long id, string type, string body, string source, DateTime publishedAt, string consistentHashKey, DateTime readAt)
         {
             Id = id;
             Type = type;
@@ -13,6 +13,7 @@ namespace Emerald.Queue
             Source = source;
             PublishedAt = publishedAt;
             ConsistentHashKey = consistentHashKey;
+            ReadAt = readAt;
         }
 
         public long Id { get; }
@@ -21,6 +22,7 @@ namespace Emerald.Queue
         public string Source { get; }
         public DateTime PublishedAt { get; }
         public string ConsistentHashKey { get; }
+        public DateTime ReadAt { get; }
 
         object IConsistentHashable.ConsistentHashKey => ConsistentHashKey;
     }

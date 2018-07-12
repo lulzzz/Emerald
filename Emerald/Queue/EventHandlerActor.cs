@@ -28,6 +28,7 @@ namespace Emerald.Queue
 
         private async Task Handle(Event @event)
         {
+            var receivedAt = DateTime.UtcNow;
             var logger = Context.GetLogger();
 
             logger.Info(LoggerHelper.CreateLogContent($"Starting handle event '{@event.Id}:{@event.Type}'."));
@@ -36,7 +37,7 @@ namespace Emerald.Queue
             {
                 if (!_eventTypeDictionary.ContainsKey(@event.Type))
                 {
-                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Missed", "Event handler not registered.");
+                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Missed", "Event handler not registered.", @event.ReadAt, receivedAt, DateTime.UtcNow);
                     return;
                 }
 
@@ -70,11 +71,11 @@ namespace Emerald.Queue
 
                 if (exception == null)
                 {
-                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.");
+                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.", @event.ReadAt, receivedAt, DateTime.UtcNow);
                 }
                 else
                 {
-                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", exception.ToString());
+                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", exception.ToString(), @event.ReadAt, receivedAt, DateTime.UtcNow);
                 }
             }
             catch (Exception ex)
