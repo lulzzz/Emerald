@@ -23,35 +23,42 @@ namespace Emerald.Core
 
         public async Task Handle(Command command)
         {
-            using (var scope = _serviceScopeFactory.CreateScope())
-            using (var transaction = _transactionScopeFactory.Create(scope))
+            var commandExecutionResult = new CommandExecutionResult { CommandId = command.Id };
+
+            try
             {
-                var commandHandler = (CommandHandler)scope.ServiceProvider.GetService(_commandHandlerType);
-                var commandExecutionResult = new CommandExecutionResult { CommandId = command.Id };
-
-                commandHandler.Initialize();
-
-                try
+                using (var scope = _serviceScopeFactory.CreateScope())
+                using (var transaction = _transactionScopeFactory.Create(scope))
                 {
-                    commandExecutionResult.Output = await commandHandler.Handle(command);
+                    var commandHandler = (CommandHandler)scope.ServiceProvider.GetService(_commandHandlerType);
+                    commandHandler.Initialize();
 
-                    if (commandExecutionResult.Output is IOperationResult operationResult && operationResult.IsError)
+                    try
+                    {
+                        commandExecutionResult.Output = await commandHandler.Handle(command);
+
+                        if (commandExecutionResult.Output is IOperationResult operationResult && operationResult.IsError)
+                        {
+                            transaction.Rollback();
+                        }
+                        else
+                        {
+                            transaction.Commit();
+                        }
+                    }
+                    catch
                     {
                         transaction.Rollback();
-                    }
-                    else
-                    {
-                        transaction.Commit();
+                        throw;
                     }
                 }
-                catch (Exception ex)
-                {
-                    commandExecutionResult.Exception = ex;
-                    transaction.Rollback();
-                }
-
-                Context.System.EventStream.Publish(commandExecutionResult);
             }
+            catch (Exception ex)
+            {
+                commandExecutionResult.Exception = ex;
+            }
+
+            Context.System.EventStream.Publish(commandExecutionResult);
         }
     }
 }

@@ -25,6 +25,8 @@ namespace Emerald.Queue
         private async Task<string> Listen()
         {
             var logger = Context.GetLogger();
+            var listenerStartedAt = DateTime.UtcNow;
+            DateTime? listenerInitializedDbAt = null;
 
             try
             {
@@ -33,12 +35,22 @@ namespace Emerald.Queue
                     await _queueConfig.QueueDbAccessManager.CreateQueueDbIfNeeded();
                     await _queueConfig.QueueDbAccessManager.RegisterSubscriberIfNeeded();
                     _initialized = true;
+                    listenerInitializedDbAt = DateTime.UtcNow;
                 }
 
                 var eventArray = await _queueConfig.QueueDbAccessManager.GetEvents();
                 if (eventArray.Length == 0) return ScheduleNextListenCommand;
-                logger.Info(LoggerHelper.CreateLogContent($"{eventArray.Length} event(s) received."));
-                foreach (var @event in eventArray) _eventHandlerActor.Tell(@event);
+
+                foreach (var @event in eventArray)
+                {
+                    var eventProcessingInfoLogBuilder = new EventProcessingLogBuilder();
+                    eventProcessingInfoLogBuilder.Start(listenerStartedAt);
+                    eventProcessingInfoLogBuilder.DbInitialized(listenerInitializedDbAt);
+                    eventProcessingInfoLogBuilder.EventRead(@event.ReadAt);
+                    eventProcessingInfoLogBuilder.SetEventId(@event.Id);
+                    eventProcessingInfoLogBuilder.EventSent();
+                    _eventHandlerActor.Tell(new QueueEnvelope(@event, eventProcessingInfoLogBuilder));
+                }
             }
             catch (Exception ex)
             {

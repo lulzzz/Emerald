@@ -22,64 +22,83 @@ namespace Emerald.Queue
             _queueConfig = queueConfig;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
-            ReceiveAsync<Event>(Handle);
+            ReceiveAsync<QueueEnvelope>(Handle);
         }
 
-        private async Task Handle(Event @event)
+        private async Task Handle(QueueEnvelope envelope)
         {
-            var receivedAt = DateTime.UtcNow;
             var logger = Context.GetLogger();
-
-            logger.Info(LoggerHelper.CreateLogContent($"Starting handle event '{@event.Id}:{@event.Type}'."));
+            envelope.EventProcessingLogBuilder.EventReceived();
 
             try
             {
-                if (!_eventTypeDictionary.ContainsKey(@event.Type))
+                if (!_eventTypeDictionary.ContainsKey(envelope.Event.Type))
                 {
-                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Missed", "Event handler not registered.", @event.ReadAt, receivedAt, DateTime.UtcNow);
-                    return;
-                }
-
-                Exception exception = null;
-
-                using (var scope = _serviceScopeFactory.CreateScope())
-                using (var transaction = _transactionScopeFactory.Create(scope))
-                {
-                    try
-                    {
-                        var eventType = _eventTypeDictionary[@event.Type];
-                        var eventObj = JsonHelper.Deserialize(@event.Body, eventType);
-
-                        foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
-                        {
-                            var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
-                            eventListener.Initialize();
-                            await eventListener.Handle(eventObj);
-                        }
-
-                        transaction.Commit();
-
-                        logger.Info(LoggerHelper.CreateLogContent($"Event '{@event.Id}:{@event.Type}' handled."));
-                    }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        exception = ex;
-                    }
-                }
-
-                if (exception == null)
-                {
-                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Success", "Event handled successfully.", @event.ReadAt, receivedAt, DateTime.UtcNow);
+                    envelope.EventProcessingLogBuilder.EventHandled();
+                    await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Missed", "Event handler not registered.");
+                    envelope.EventProcessingLogBuilder.EventLogWrote();
+                    envelope.EventProcessingLogBuilder.SetMessage("Event handled successfully.");
+                    logger.Info(envelope.EventProcessingLogBuilder.Build());
                 }
                 else
                 {
-                    await _queueConfig.QueueDbAccessManager.AddLog(@event.Id, "Error", exception.ToString(), @event.ReadAt, receivedAt, DateTime.UtcNow);
+                    Exception exception = null;
+
+                    try
+                    {
+                        await RetryHelper.Execute(async () =>
+                        {
+                            using (var scope = _serviceScopeFactory.CreateScope())
+                            using (var transaction = _transactionScopeFactory.Create(scope))
+                            {
+                                try
+                                {
+                                    var eventType = _eventTypeDictionary[envelope.Event.Type];
+                                    var eventObj = JsonHelper.Deserialize(envelope.Event.Body, eventType);
+
+                                    foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
+                                    {
+                                        var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
+                                        eventListener.Initialize();
+                                        await eventListener.Handle(eventObj);
+                                    }
+
+                                    transaction.Commit();
+                                }
+                                catch
+                                {
+                                    transaction.Rollback();
+                                    throw;
+                                }
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        exception = ex;
+                    }
+
+                    envelope.EventProcessingLogBuilder.EventHandled();
+
+                    if (exception == null)
+                    {
+                        await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Success", "Event handled successfully.");
+                        envelope.EventProcessingLogBuilder.EventLogWrote();
+                        envelope.EventProcessingLogBuilder.SetMessage("Event handled successfully.");
+                        logger.Info(envelope.EventProcessingLogBuilder.Build());
+                    }
+                    else
+                    {
+                        await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Error", exception.ToString());
+                        envelope.EventProcessingLogBuilder.EventLogWrote();
+                        envelope.EventProcessingLogBuilder.SetMessage("Event handled with error.");
+                        logger.Error(exception, envelope.EventProcessingLogBuilder.Build());
+                    }
                 }
             }
             catch (Exception ex)
             {
-                logger.Error(ex, LoggerHelper.CreateLogContent($"Error on handling event '{@event.Id}:{@event.Type}'."));
+                logger.Error(ex, LoggerHelper.CreateLogContent($"Error on handling event '{envelope.Event.Id}:{envelope.Event.Type}'."));
             }
         }
     }
