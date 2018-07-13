@@ -19,7 +19,7 @@ namespace Emerald.Queue
             "IF NOT EXISTS (SELECT * FROM [sys].[columns] WHERE [object_id] = OBJECT_ID(N'[dbo].[Events]') AND [name] = 'ConsistentHashKey') ALTER TABLE [dbo].[Events] ADD [ConsistentHashKey] NVARCHAR(64) NULL " +
             "IF NOT EXISTS(SELECT * FROM [sys].[indexes] WHERE [name] = 'IX_Events_PublishedAt' AND object_id = OBJECT_ID('Events')) CREATE INDEX [IX_Events_PublishedAt] ON [dbo].[Events] ([PublishedAt]) INCLUDE ([Source]) " +
             "IF OBJECT_ID('Subscribers') IS NULL CREATE TABLE [dbo].[Subscribers] ([Name] NVARCHAR(64) PRIMARY KEY, [LastReadAt] DATETIME2(7) NOT NULL, [LastReadEventId] INT NOT NULL) " +
-            "IF OBJECT_ID('Logs') IS NULL CREATE TABLE [dbo].[Logs] ([EventId] INT NOT NULL, [SubscriberName] NVARCHAR(64) NOT NULL, [ProcessedAt] DATETIME2(7) NOT NULL, [Result] NVARCHAR(8) NOT NULL, [Message] NVARCHAR(1024) NOT NULL, PRIMARY KEY ([EventId], [SubscriberName])) " +
+            "IF OBJECT_ID('Logs') IS NULL CREATE TABLE [dbo].[Logs] ([EventId] INT NOT NULL, [SubscriberName] NVARCHAR(64) NOT NULL, [ProcessedAt] DATETIME2(7) NOT NULL, [Result] NVARCHAR(8) NOT NULL, [Message] NVARCHAR(MAX) NOT NULL, PRIMARY KEY ([EventId], [SubscriberName])) " +
             "IF NOT EXISTS(SELECT * FROM [sys].[indexes] WHERE [name] = 'IX_Logs_Result' AND object_id = OBJECT_ID('Logs')) CREATE INDEX [IX_Logs_Result] ON [dbo].[Logs] ([Result]) ";
 
         private const string RegisterSubscriberQuery = "IF (SELECT COUNT(*) FROM [dbo].[Subscribers] WHERE [Name] = @Name) = 0 INSERT INTO [dbo].[Subscribers] ([Name], [LastReadAt], [LastReadEventId]) VALUES (@Name, GETUTCDATE(), (SELECT COALESCE(MAX([Id]), 0) FROM [dbo].[Events]))";
