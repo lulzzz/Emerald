@@ -31,7 +31,7 @@ namespace Emerald.AspNetCore.Common
         {
             _emeraldSystemBuilderConfig.AddCommandHandler<T>();
         }
-        public void AddJob<T>() where T : class, IJob
+        public void AddJob<T>() where T : Job
         {
             var jobConig = _configuration.Environment.Jobs.Single(c => c.Name == typeof(T).Name);
             if (jobConig.Enabled == false) return;

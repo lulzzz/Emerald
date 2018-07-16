@@ -57,7 +57,7 @@ namespace Emerald.Queue
                             foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
                             {
                                 var eventListenerConstructor = eventListenerType.GetConstructor(Type.EmptyTypes);
-                                if (eventListenerConstructor == null) throw new ApplicationException($"Can not fine parameterless constructor in type '{eventListenerType.FullName}'.");
+                                if (eventListenerConstructor == null) throw new ApplicationException($"Can not find parameterless constructor in type '{eventListenerType.FullName}'.");
                                 var eventListener = (EventListener)eventListenerConstructor.Invoke(new object[0]);
                                 eventListener.Initialize();
                                 eventListener.CommandExecutor = _commandExecutor;

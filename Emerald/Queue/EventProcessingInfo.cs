@@ -20,6 +20,8 @@ namespace Emerald.Queue
 
         public string Message { get; private set; }
         public long EventId { get; private set; }
+        public string EventType { get; private set; }
+        public string ConsistentHashKey { get; private set; }
         public DateTime ListenerStartedAt { get; private set; }
         public string DbInitializingTime => _dbInitializingTime == null ? null : $"{_dbInitializingTime}ms";
         public string EventReadingByListenerTime => $"{_eventReadingByListenerTime}ms";
@@ -27,6 +29,7 @@ namespace Emerald.Queue
         public string EventReceivingByHandlerTime => $"{_eventReceivingByHandlerTime}ms";
         public string EventHandlingTime => $"{_eventHandlingTime}ms";
         public string EventLogTime => $"{_eventLogTime}ms";
+        public string Total => $"{Math.Round((_handlerWroteLogAt - ListenerStartedAt).TotalMilliseconds)}ms";
 
         public void Start(DateTime startedAt)
         {
@@ -63,9 +66,11 @@ namespace Emerald.Queue
             _handlerWroteLogAt = DateTime.UtcNow;
             _eventLogTime = Math.Round((_handlerWroteLogAt - _handlerHandledEventAt).TotalMilliseconds);
         }
-        public void SetEventId(long eventId)
+        public void SetEventInfo(long eventId, string eventType, string consistentHashKey)
         {
             EventId = eventId;
+            EventType = eventType;
+            ConsistentHashKey = consistentHashKey;
         }
         public void SetMessage(string message)
         {

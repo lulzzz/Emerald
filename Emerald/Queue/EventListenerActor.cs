@@ -47,7 +47,7 @@ namespace Emerald.Queue
                     eventProcessingInfoLogBuilder.Start(listenerStartedAt);
                     eventProcessingInfoLogBuilder.DbInitialized(listenerInitializedDbAt);
                     eventProcessingInfoLogBuilder.EventRead(@event.ReadAt);
-                    eventProcessingInfoLogBuilder.SetEventId(@event.Id);
+                    eventProcessingInfoLogBuilder.SetEventInfo(@event.Id, @event.Type, @event.ConsistentHashKey);
                     eventProcessingInfoLogBuilder.EventSent();
                     _eventHandlerActor.Tell(new QueueEnvelope(@event, eventProcessingInfoLogBuilder));
                 }

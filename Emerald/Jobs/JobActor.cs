@@ -1,6 +1,7 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using Emerald.Abstractions;
+using Emerald.Core;
 using Emerald.Utils;
 using System;
 using System.Threading.Tasks;
@@ -11,16 +12,18 @@ namespace Emerald.Jobs
     {
         private readonly TimeSpan _delay;
         private readonly Type _jobType;
+        private readonly CommandExecutor _commandExecutor;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
 
         public const string ExecuteJobCommand = "EXECUTEJOB";
         public const string ScheduleJobCommand = "SCHEDULEJOB";
 
-        public JobActor(string crontab, Type jobType, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
+        public JobActor(string crontab, Type jobType, CommandExecutor commandExecutor, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
             _delay = GetDelay(crontab);
             _jobType = jobType;
+            _commandExecutor = commandExecutor;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
             Receive<string>(msg => msg == ExecuteJobCommand, msg => ExecuteJob().PipeTo(Self));
@@ -32,21 +35,19 @@ namespace Emerald.Jobs
             var logger = Context.GetLogger();
             logger.Info(LoggerHelper.CreateLogContent($"Job '{_jobType.Name}' started."));
 
-            using (var scope = _serviceScopeFactory.CreateScope())
-            using (var transaction = _transactionScopeFactory.Create(scope))
+            try
             {
-                var job = (IJob)scope.ServiceProvider.GetService(_jobType);
-
-                try
-                {
-                    await job.Execute();
-                    transaction.Commit();
-                }
-                catch (Exception ex)
-                {
-                    transaction.Rollback();
-                    logger.Error(ex, LoggerHelper.CreateLogContent("Error on job execution."));
-                }
+                var jobConstructor = _jobType.GetConstructor(Type.EmptyTypes);
+                if (jobConstructor == null) throw new ApplicationException($"Can not find parameterless constructor in type '{_jobType.FullName}'.");
+                var job = (Job)jobConstructor.Invoke(new object[0]);
+                job.CommandExecutor = _commandExecutor;
+                job.ServiceScopeFactory = _serviceScopeFactory;
+                job.TransactionScopeFactory = _transactionScopeFactory;
+                await job.Execute();
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, LoggerHelper.CreateLogContent("Error on job execution."));
             }
 
             logger.Info(LoggerHelper.CreateLogContent($"Job '{_jobType.Name}' finished."));

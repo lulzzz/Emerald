@@ -1,4 +1,6 @@
 ﻿using Akka.Actor;
+using Akka.Routing;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -7,12 +9,10 @@ namespace Emerald.Core
 {
     public sealed class CommandExecutor
     {
-        private readonly ActorSystem _actorSystem;
         private readonly Dictionary<Type, IActorRef> _commandHandlerDictionary;
 
-        internal CommandExecutor(ActorSystem actorSystem, Dictionary<Type, IActorRef> commandHandlerDictionary)
+        internal CommandExecutor(Dictionary<Type, IActorRef> commandHandlerDictionary)
         {
-            _actorSystem = actorSystem;
             _commandHandlerDictionary = commandHandlerDictionary;
         }
 
@@ -20,21 +20,27 @@ namespace Emerald.Core
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
 
-            var commandExecutionResultActor = _actorSystem.ActorOf(Props.Create(() => new CommandExecutionResultActor(command.Id)));
-            _actorSystem.EventStream.Subscribe(commandExecutionResultActor, typeof(CommandExecutionResult));
-            _commandHandlerDictionary[command.GetType()].Tell(command);
+            var envelope = new CommandEnvelope(command, new CommandProcessingLogBuilder());
+            envelope.CommandProcessingLogBuilder.Start();
+            envelope.CommandProcessingLogBuilder.SetEventInfo(command.Id, command.GetType().Name, ((IConsistentHashable)command).ConsistentHashKey?.ToString());
 
-            try
+            var resultTask = _commandHandlerDictionary[command.GetType()].Ask<CommandExecutionResult>(envelope);
+            envelope.CommandProcessingLogBuilder.CommandSent();
+
+            var result = await resultTask;
+            envelope.CommandProcessingLogBuilder.ResultReceived();
+
+            if (result.Exception != null)
             {
-                var result = await commandExecutionResultActor.Ask<CommandExecutionResult>(command.Id);
-                if (result.Exception != null) throw result.Exception;
-                return (T)result.Output;
+                envelope.CommandProcessingLogBuilder.SetMessage("Command handled with error.");
+                Log.Error(result.Exception, envelope.CommandProcessingLogBuilder.Build());
+                throw result.Exception;
             }
-            finally
-            {
-                _actorSystem.EventStream.Unsubscribe(commandExecutionResultActor);
-                commandExecutionResultActor.Tell(PoisonPill.Instance);
-            }
+
+            envelope.CommandProcessingLogBuilder.SetMessage("Command handled successfully.");
+            Log.Information(envelope.CommandProcessingLogBuilder.Build());
+
+            return (T)result.Output;
         }
 
         public async Task Execute(Command command)

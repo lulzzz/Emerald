@@ -17,13 +17,13 @@ namespace Emerald.Core
             _commandHandlerType = commandHandlerType;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
-
-            ReceiveAsync<Command>(Handle);
+            ReceiveAsync<CommandEnvelope>(Handle);
         }
 
-        public async Task Handle(Command command)
+        public async Task Handle(CommandEnvelope envelope)
         {
-            var commandExecutionResult = new CommandExecutionResult { CommandId = command.Id };
+            envelope.CommandProcessingLogBuilder.CommandReceived();
+            var commandExecutionResult = new CommandExecutionResult { CommandId = envelope.Command.Id };
 
             try
             {
@@ -35,7 +35,7 @@ namespace Emerald.Core
 
                     try
                     {
-                        commandExecutionResult.Output = await commandHandler.Handle(command);
+                        commandExecutionResult.Output = await commandHandler.Handle(envelope.Command);
 
                         if (commandExecutionResult.Output is IOperationResult operationResult && operationResult.IsError)
                         {
@@ -58,7 +58,9 @@ namespace Emerald.Core
                 commandExecutionResult.Exception = ex;
             }
 
-            Context.System.EventStream.Publish(commandExecutionResult);
+            envelope.CommandProcessingLogBuilder.CommandHandled();
+
+            Context.Sender.Tell(commandExecutionResult);
         }
     }
 }

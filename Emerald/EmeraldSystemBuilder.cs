@@ -44,7 +44,7 @@ namespace Emerald
         {
             _commandHandlerTypeList.Add(typeof(T));
         }
-        internal void AddJob<T>(string cronTab) where T : class, IJob
+        internal void AddJob<T>(string cronTab) where T : Job
         {
             _jobTypeList.Add(new Tuple<Type, string>(typeof(T), cronTab));
         }
@@ -60,12 +60,13 @@ namespace Emerald
             _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
             _jobTypeList.ForEach(j => _serviceCollection.AddScoped(j.Item1));
             _queueConfig?.EventListenerTypes.ForEach(_serviceCollection.AddScoped);
-            _serviceCollection.AddSingleton(new CommandExecutor(_actorSystem, _commandHandlerActorDictionary));
+            _serviceCollection.AddSingleton(new CommandExecutor(_commandHandlerActorDictionary));
             _serviceCollection.AddSingleton(new EventPublisher(_queueConfig?.QueueDbAccessManager));
         }
         internal EmeraldSystem Build()
         {
             var serviceProvider = _serviceCollection.BuildServiceProvider();
+            var commandExecutor = (CommandExecutor)serviceProvider.GetService(typeof(CommandExecutor));
             var serviceScopeFactory = (IServiceScopeFactory)serviceProvider.GetService(typeof(IServiceScopeFactory));
             var transactionScopeFactory = (ITransactionScopeFactory)serviceProvider.GetService(typeof(ITransactionScopeFactory));
 
@@ -79,7 +80,7 @@ namespace Emerald
 
             foreach (var jobType in _jobTypeList)
             {
-                var jobActorProps = Props.Create(() => new JobActor(jobType.Item2, jobType.Item1, serviceScopeFactory, transactionScopeFactory));
+                var jobActorProps = Props.Create(() => new JobActor(jobType.Item2, jobType.Item1, commandExecutor, serviceScopeFactory, transactionScopeFactory));
                 var jobActor = _actorSystem.ActorOf(jobActorProps);
                 jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
             }
@@ -87,7 +88,7 @@ namespace Emerald
             if (_queueConfig != null && _queueConfig.Listen && _queueConfig.EventListenerTypes.Length > 0)
             {
                 _queueConfig.EventTypes = GetEventTypes(_queueConfig.EventListenerTypes, serviceScopeFactory);
-                var eventHandlerActorProps = Props.Create(() => new EventHandlerActor(new CommandExecutor(_actorSystem, _commandHandlerActorDictionary), _queueConfig, serviceScopeFactory, transactionScopeFactory)).WithRouter(new ConsistentHashingPool(1000));
+                var eventHandlerActorProps = Props.Create(() => new EventHandlerActor(commandExecutor, _queueConfig, serviceScopeFactory, transactionScopeFactory)).WithRouter(new ConsistentHashingPool(1000));
                 var eventHandlerActor = _actorSystem.ActorOf(eventHandlerActorProps);
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(eventHandlerActor, _queueConfig));
                 var eventListenerActor = _actorSystem.ActorOf(eventListenerActorProps);
@@ -156,7 +157,7 @@ namespace Emerald
             _emeraldSystemBuilder.AddCommandHandler<T>();
             return this;
         }
-        public EmeraldSystemBuilderFirstStepConfig AddJob<T>(string cronTab) where T : class, IJob
+        public EmeraldSystemBuilderFirstStepConfig AddJob<T>(string cronTab) where T : Job
         {
             if (cronTab == null) throw new ArgumentNullException(nameof(cronTab));
             _emeraldSystemBuilder.AddJob<T>(cronTab);
