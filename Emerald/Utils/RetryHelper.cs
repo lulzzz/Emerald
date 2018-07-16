@@ -25,7 +25,7 @@ namespace Emerald.Utils
                     retry++;
                 }
 
-                await Task.Delay(delay);
+                await Task.Delay(TimeSpan.FromMilliseconds(delay));
             }
         }
     }

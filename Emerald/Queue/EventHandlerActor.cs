@@ -1,6 +1,7 @@
 ﻿using Akka.Actor;
 using Akka.Event;
 using Emerald.Abstractions;
+using Emerald.Core;
 using Emerald.Utils;
 using System;
 using System.Collections.Generic;
@@ -12,13 +13,15 @@ namespace Emerald.Queue
     internal sealed class EventHandlerActor : ReceiveActor
     {
         private readonly Dictionary<string, Type> _eventTypeDictionary;
+        private readonly CommandExecutor _commandExecutor;
         private readonly QueueConfig _queueConfig;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
 
-        public EventHandlerActor(QueueConfig queueConfig, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
+        public EventHandlerActor(CommandExecutor commandExecutor, QueueConfig queueConfig, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
             _eventTypeDictionary = queueConfig.EventTypes.ToDictionary(i => i.Key.Name, i => i.Key);
+            _commandExecutor = commandExecutor;
             _queueConfig = queueConfig;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
@@ -48,28 +51,19 @@ namespace Emerald.Queue
                     {
                         await RetryHelper.Execute(async () =>
                         {
-                            using (var scope = _serviceScopeFactory.CreateScope())
-                            using (var transaction = _transactionScopeFactory.Create(scope))
+                            var eventType = _eventTypeDictionary[envelope.Event.Type];
+                            var eventObj = JsonHelper.Deserialize(envelope.Event.Body, eventType);
+
+                            foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
                             {
-                                try
-                                {
-                                    var eventType = _eventTypeDictionary[envelope.Event.Type];
-                                    var eventObj = JsonHelper.Deserialize(envelope.Event.Body, eventType);
-
-                                    foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
-                                    {
-                                        var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
-                                        eventListener.Initialize();
-                                        await eventListener.Handle(eventObj);
-                                    }
-
-                                    transaction.Commit();
-                                }
-                                catch
-                                {
-                                    transaction.Rollback();
-                                    throw;
-                                }
+                                var eventListenerConstructor = eventListenerType.GetConstructor(Type.EmptyTypes);
+                                if (eventListenerConstructor == null) throw new ApplicationException($"Can not fine parameterless constructor in type '{eventListenerType.FullName}'.");
+                                var eventListener = (EventListener)eventListenerConstructor.Invoke(new object[0]);
+                                eventListener.Initialize();
+                                eventListener.CommandExecutor = _commandExecutor;
+                                eventListener.ServiceScopeFactory = _serviceScopeFactory;
+                                eventListener.TransactionScopeFactory = _transactionScopeFactory;
+                                await eventListener.Handle(eventObj);
                             }
                         });
                     }
