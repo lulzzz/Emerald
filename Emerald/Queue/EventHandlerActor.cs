@@ -13,15 +13,15 @@ namespace Emerald.Queue
     internal sealed class EventHandlerActor : ReceiveActor
     {
         private readonly Dictionary<string, Type> _eventTypeDictionary;
-        private readonly CommandExecutor _commandExecutor;
+        private readonly Func<CommandExecutor> _commandExecutorFactory;
         private readonly QueueConfig _queueConfig;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
 
-        public EventHandlerActor(CommandExecutor commandExecutor, QueueConfig queueConfig, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
+        public EventHandlerActor(Func<CommandExecutor> commandExecutorFactory, QueueConfig queueConfig, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
             _eventTypeDictionary = queueConfig.EventTypes.ToDictionary(i => i.Key.Name, i => i.Key);
-            _commandExecutor = commandExecutor;
+            _commandExecutorFactory = commandExecutorFactory;
             _queueConfig = queueConfig;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
@@ -31,69 +31,83 @@ namespace Emerald.Queue
         private async Task Handle(QueueEnvelope envelope)
         {
             var logger = Context.GetLogger();
-            envelope.EventProcessingLogBuilder.EventReceived();
+            var startedAt = DateTime.UtcNow;
+            var exceptionList = new List<Exception>();
 
             try
             {
                 if (!_eventTypeDictionary.ContainsKey(envelope.Event.Type))
                 {
-                    envelope.EventProcessingLogBuilder.EventHandled();
                     await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Missed", "Event handler not registered.");
-                    envelope.EventProcessingLogBuilder.EventLogWrote();
-                    envelope.EventProcessingLogBuilder.SetMessage("Event handled successfully.");
-                    logger.Info(envelope.EventProcessingLogBuilder.Build());
+                    logger.Info(CreateLogMessage("Event handled successfully.", envelope, startedAt, new EventHandlerInfo[0]));
+                    return;
                 }
-                else
+
+                var eventType = _eventTypeDictionary[envelope.Event.Type];
+                var eventObj = JsonHelper.Deserialize(envelope.Event.Body, eventType);
+                var eventHandlerList = new List<EventHandlerInfo>();
+
+                foreach (var eventHandlerType in _queueConfig.EventTypes[eventType])
                 {
-                    Exception exception = null;
+                    var handlerStartedAt = DateTime.UtcNow;
+                    var commandExecutor = _commandExecutorFactory.Invoke();
+                    var status = "Success";
 
                     try
                     {
+                        var eventHandlerConstructor = eventHandlerType.GetConstructor(Type.EmptyTypes);
+                        if (eventHandlerConstructor == null) throw new ApplicationException($"Can not find parameterless constructor in type '{eventHandlerType.FullName}'.");
+
                         await RetryHelper.Execute(async () =>
                         {
-                            var eventType = _eventTypeDictionary[envelope.Event.Type];
-                            var eventObj = JsonHelper.Deserialize(envelope.Event.Body, eventType);
-
-                            foreach (var eventListenerType in _queueConfig.EventTypes[eventType])
-                            {
-                                var eventListenerConstructor = eventListenerType.GetConstructor(Type.EmptyTypes);
-                                if (eventListenerConstructor == null) throw new ApplicationException($"Can not find parameterless constructor in type '{eventListenerType.FullName}'.");
-                                var eventListener = (EventListener)eventListenerConstructor.Invoke(new object[0]);
-                                eventListener.Initialize();
-                                eventListener.CommandExecutor = _commandExecutor;
-                                eventListener.ServiceScopeFactory = _serviceScopeFactory;
-                                eventListener.TransactionScopeFactory = _transactionScopeFactory;
-                                await eventListener.Handle(eventObj);
-                            }
+                            var eventHandler = (EventHandler)eventHandlerConstructor.Invoke(new object[0]);
+                            eventHandler.Initialize();
+                            eventHandler.CommandExecutor = commandExecutor;
+                            eventHandler.ServiceScopeFactory = _serviceScopeFactory;
+                            eventHandler.TransactionScopeFactory = _transactionScopeFactory;
+                            await eventHandler.Handle(eventObj);
                         });
                     }
                     catch (Exception ex)
                     {
-                        exception = ex;
+                        exceptionList.Add(ex);
+                        status = "Failed";
                     }
 
-                    envelope.EventProcessingLogBuilder.EventHandled();
+                    eventHandlerList.Add(new EventHandlerInfo(eventHandlerType.Name, handlerStartedAt, status, commandExecutor.GetInfo()));
+                }
 
-                    if (exception == null)
-                    {
-                        await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Success", "Event handled successfully.");
-                        envelope.EventProcessingLogBuilder.EventLogWrote();
-                        envelope.EventProcessingLogBuilder.SetMessage("Event handled successfully.");
-                        logger.Info(envelope.EventProcessingLogBuilder.Build());
-                    }
-                    else
-                    {
-                        await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Error", exception.ToString());
-                        envelope.EventProcessingLogBuilder.EventLogWrote();
-                        envelope.EventProcessingLogBuilder.SetMessage("Event handled with error.");
-                        logger.Error(exception, envelope.EventProcessingLogBuilder.Build());
-                    }
+                if (exceptionList.Count == 0)
+                {
+                    await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Success", "Event handled successfully.");
+                    logger.Info(CreateLogMessage("Event handled successfully.", envelope, startedAt, eventHandlerList.ToArray()));
+                }
+                else
+                {
+                    var exception = new AggregateException(exceptionList);
+                    await _queueConfig.QueueDbAccessManager.AddLog(envelope.Event.Id, "Error", exception.ToString());
+                    logger.Error(exception, CreateLogMessage("Event handled with errors.", envelope, startedAt, eventHandlerList.ToArray()));
                 }
             }
             catch (Exception ex)
             {
                 logger.Error(ex, LoggerHelper.CreateLogContent($"Error on handling event '{envelope.Event.Id}:{envelope.Event.Type}'."));
             }
+        }
+
+        private string CreateLogMessage(string message, QueueEnvelope envelope, DateTime startedAt, EventHandlerInfo[] handlers)
+        {
+            return JsonHelper.Serialize(new
+            {
+                message,
+                eventId = envelope.Event.Id,
+                eventType = envelope.Event.Type,
+                consistentHashKey = envelope.Event.ConsistentHashKey,
+                startedAt,
+                time = $"{Math.Round((DateTime.UtcNow - startedAt).TotalMilliseconds)}ms",
+                listener = envelope.Listener,
+                handlers
+            });
         }
     }
 }

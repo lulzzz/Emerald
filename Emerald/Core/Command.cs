@@ -8,5 +8,7 @@ namespace Emerald.Core
         internal Guid Id { get; } = Guid.NewGuid();
         protected virtual object ConsistentHashKey { get; } = null;
         object IConsistentHashable.ConsistentHashKey => ConsistentHashKey;
+
+        internal object GetConsistentHashKey() => ConsistentHashKey;
     }
 }

@@ -22,6 +22,11 @@ namespace Emerald.AspNetCore.Infrastructure
             _serviceCollection.AddScoped(type);
         }
 
+        public void AddScoped<T>(Func<T> implementationFactory) where T : class
+        {
+            _serviceCollection.AddScoped(sp => implementationFactory());
+        }
+
         public void AddScoped(Type serviceType, Type implementationType)
         {
             _serviceCollection.AddScoped(serviceType, implementationType);

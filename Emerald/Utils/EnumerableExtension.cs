@@ -19,5 +19,9 @@ namespace Emerald.Utils
         {
             return !collection.All(predicate);
         }
+        public static bool NotAny<T>(this IEnumerable<T> collection, Func<T, bool> predicate)
+        {
+            return !collection.Any(predicate);
+        }
     }
 }

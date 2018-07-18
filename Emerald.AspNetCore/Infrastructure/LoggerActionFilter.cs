@@ -1,4 +1,5 @@
 ﻿using Emerald.AspNetCore.Configuration;
+using Emerald.Core;
 using Emerald.Utils;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Internal;
@@ -16,12 +17,14 @@ namespace Emerald.AspNetCore.Infrastructure
     {
         private readonly IApplicationConfiguration _applicationConfiguration;
         private readonly ILogger<LoggerActionFilter> _logger;
+        private readonly CommandExecutor _commandExecutor;
         private DateTime _startedAt;
 
-        public LoggerActionFilter(IApplicationConfiguration applicationConfiguration, ILogger<LoggerActionFilter> logger)
+        public LoggerActionFilter(IApplicationConfiguration applicationConfiguration, ILogger<LoggerActionFilter> logger, CommandExecutor commandExecutor)
         {
             _applicationConfiguration = applicationConfiguration;
             _logger = logger;
+            _commandExecutor = commandExecutor;
         }
 
         public void OnActionExecuting(ActionExecutingContext context)
@@ -39,14 +42,13 @@ namespace Emerald.AspNetCore.Infrastructure
         {
             var isError = context.Exception != null && !context.ExceptionHandled;
 
-            var log = new
+            var message = JsonHelper.Serialize(new
             {
                 message = isError ? "Request handled with error." : "Request handled.",
                 request = CreateRequestLogObject(context),
-                response = CreateResponseLogObject(context)
-            };
-
-            var message = JsonHelper.Serialize(log);
+                response = CreateResponseLogObject(context),
+                commands = _commandExecutor.GetInfo()
+            });
 
             if (isError)
             {

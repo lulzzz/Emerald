@@ -1,6 +1,4 @@
 ﻿using Akka.Actor;
-using Akka.Routing;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,6 +8,7 @@ namespace Emerald.Core
     public sealed class CommandExecutor
     {
         private readonly Dictionary<Type, IActorRef> _commandHandlerDictionary;
+        private readonly List<CommandInfo> _commandInfoList = new List<CommandInfo>();
 
         internal CommandExecutor(Dictionary<Type, IActorRef> commandHandlerDictionary)
         {
@@ -20,32 +19,23 @@ namespace Emerald.Core
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
 
-            var envelope = new CommandEnvelope(command, new CommandProcessingLogBuilder());
-            envelope.CommandProcessingLogBuilder.Start();
-            envelope.CommandProcessingLogBuilder.SetEventInfo(command.Id, command.GetType().Name, ((IConsistentHashable)command).ConsistentHashKey?.ToString());
-
-            var resultTask = _commandHandlerDictionary[command.GetType()].Ask<CommandExecutionResult>(envelope);
-            envelope.CommandProcessingLogBuilder.CommandSent();
-
+            var resultTask = _commandHandlerDictionary[command.GetType()].Ask<CommandExecutionResult>(command);
             var result = await resultTask;
-            envelope.CommandProcessingLogBuilder.ResultReceived();
+
+            _commandInfoList.Add(result.Info);
 
             if (result.Exception != null)
             {
-                envelope.CommandProcessingLogBuilder.SetMessage("Command handled with error.");
-                Log.Error(result.Exception, envelope.CommandProcessingLogBuilder.Build());
                 throw result.Exception;
             }
 
-            envelope.CommandProcessingLogBuilder.SetMessage("Command handled successfully.");
-            Log.Information(envelope.CommandProcessingLogBuilder.Build());
-
             return (T)result.Output;
         }
-
         public async Task Execute(Command command)
         {
             await Execute<object>(command);
         }
+
+        public CommandInfo[] GetInfo() => _commandInfoList.ToArray();
     }
 }

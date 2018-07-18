@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 
 namespace Emerald.Queue
 {
-    public sealed class EventListenerConfig
+    public sealed class EventHandlerConfig
     {
-        internal EventListenerConfig()
+        internal EventHandlerConfig()
         {
         }
 

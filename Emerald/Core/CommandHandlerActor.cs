@@ -9,57 +9,77 @@ namespace Emerald.Core
     internal sealed class CommandHandlerActor : ReceiveActor
     {
         private readonly Type _commandHandlerType;
+        private readonly ICommandExecutionStrategyFactory _commandExecutionStrategyFactory;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
 
-        public CommandHandlerActor(Type commandHandlerType, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
+        public CommandHandlerActor(
+            Type commandHandlerType,
+            ICommandExecutionStrategyFactory commandExecutionStrategyFactory,
+            IServiceScopeFactory serviceScopeFactory,
+            ITransactionScopeFactory transactionScopeFactory)
         {
             _commandHandlerType = commandHandlerType;
+            _commandExecutionStrategyFactory = commandExecutionStrategyFactory;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
-            ReceiveAsync<CommandEnvelope>(Handle);
+            ReceiveAsync<Command>(Handle);
         }
 
-        public async Task Handle(CommandEnvelope envelope)
+        public async Task Handle(Command command)
         {
-            envelope.CommandProcessingLogBuilder.CommandReceived();
-            var commandExecutionResult = new CommandExecutionResult { CommandId = envelope.Command.Id };
+            var startedAt = DateTime.UtcNow;
+            var status = "Success";
+            Exception exception = null;
+            object output = null;
 
             try
             {
-                using (var scope = _serviceScopeFactory.CreateScope())
-                using (var transaction = _transactionScopeFactory.Create(scope))
+                await _commandExecutionStrategyFactory.Create().Execute(async () =>
                 {
-                    var commandHandler = (CommandHandler)scope.ServiceProvider.GetService(_commandHandlerType);
-                    commandHandler.Initialize();
-
-                    try
+                    using (var scope = _serviceScopeFactory.CreateScope())
+                    using (var transaction = _transactionScopeFactory.Create(scope))
                     {
-                        commandExecutionResult.Output = await commandHandler.Handle(envelope.Command);
+                        var commandHandler = (CommandHandler)scope.ServiceProvider.GetService(_commandHandlerType);
+                        commandHandler.Initialize();
 
-                        if (commandExecutionResult.Output is IOperationResult operationResult && operationResult.IsError)
+                        try
                         {
-                            transaction.Rollback();
+                            output = await commandHandler.Handle(command);
+
+                            if (output is IOperationResult operationResult && operationResult.IsError)
+                            {
+                                status = "Failed";
+                                transaction.Rollback();
+                            }
+                            else
+                            {
+                                transaction.Commit();
+                            }
                         }
-                        else
+                        catch
                         {
-                            transaction.Commit();
+                            try
+                            {
+                                transaction.Rollback();
+                            }
+                            catch (InvalidOperationException)
+                            {
+                            }
+
+                            throw;
                         }
                     }
-                    catch
-                    {
-                        transaction.Rollback();
-                        throw;
-                    }
-                }
+                });
             }
             catch (Exception ex)
             {
-                commandExecutionResult.Exception = ex;
+                status = "Failed";
+                exception = ex;
             }
 
-            envelope.CommandProcessingLogBuilder.CommandHandled();
-
+            var commandInfo = new CommandInfo(command.GetType().Name, startedAt, status, command.GetConsistentHashKey());
+            var commandExecutionResult = new CommandExecutionResult(output, exception, commandInfo);
             Context.Sender.Tell(commandExecutionResult);
         }
     }

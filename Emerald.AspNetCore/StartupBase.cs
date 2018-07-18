@@ -26,7 +26,7 @@ namespace Emerald.AspNetCore
         {
             services.AddDbContext<TDbContext>(opt => opt.UseSqlServer(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString));
             ConfigureDependencies(services);
-            services.AddEmerald<ServiceScopeFactory, TransactionScopeFactory<TDbContext>>(Configuration, ConfigureEmerald);
+            services.AddEmerald<CommandExecutionStrategyFactory, ServiceScopeFactory, TransactionScopeFactory<TDbContext>>(Configuration, ConfigureEmerald);
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)

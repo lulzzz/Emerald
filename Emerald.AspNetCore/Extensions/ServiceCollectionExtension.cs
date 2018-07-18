@@ -1,5 +1,4 @@
-﻿using Emerald.Abstractions;
-using Emerald.AspNetCore.Common;
+﻿using Emerald.AspNetCore.Common;
 using Emerald.AspNetCore.Configuration;
 using Emerald.AspNetCore.Infrastructure;
 using Microsoft.ApplicationInsights.Extensibility;
@@ -16,19 +15,23 @@ namespace Emerald.AspNetCore.Extensions
 {
     public static class ServiceCollectionExtension
     {
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddEmerald<TServiceScopeFactory, TTransactionScopeFactory>(
-            this Microsoft.Extensions.DependencyInjection.IServiceCollection services,
+        public static IServiceCollection AddEmerald<TCommandExecutionFactory, TServiceScopeFactory, TTransactionScopeFactory>(
+            this IServiceCollection services,
             IConfiguration configuration,
             Action<EmeraldOptions> options)
-                where TServiceScopeFactory : class, Abstractions.IServiceScopeFactory
-                where TTransactionScopeFactory : class, ITransactionScopeFactory
+            where TCommandExecutionFactory : class, Abstractions.ICommandExecutionStrategyFactory
+            where TServiceScopeFactory : class, Abstractions.IServiceScopeFactory
+            where TTransactionScopeFactory : class, Abstractions.ITransactionScopeFactory
         {
             var applicationConfiguration = new ApplicationConfiguration(configuration);
             services.AddSingleton<IApplicationConfiguration>(applicationConfiguration);
 
             var serviceCollection = new Infrastructure.ServiceCollection(services);
             var applicationName = applicationConfiguration.Environment.ApplicationName;
-            var emeraldSystemBuilderConfig = EmeraldSystemBuilder.Create<TServiceScopeFactory, TTransactionScopeFactory>(applicationName, serviceCollection);
+            var emeraldSystemBuilderConfig = EmeraldSystemBuilder.Create<TServiceScopeFactory>(applicationName, serviceCollection);
+            emeraldSystemBuilderConfig.SetCommandExecutionStrategyFactory<TCommandExecutionFactory>();
+            emeraldSystemBuilderConfig.SetTransactionScopeFactory<TTransactionScopeFactory>();
+
             var emeraldOptions = new EmeraldOptions(emeraldSystemBuilderConfig, applicationConfiguration);
             options(emeraldOptions);
 

@@ -4,14 +4,14 @@ namespace Emerald.Queue
 {
     internal sealed class QueueEnvelope : IConsistentHashable
     {
-        public QueueEnvelope(Event @event, EventProcessingLogBuilder eventProcessingLogBuilder)
+        public QueueEnvelope(Event @event, EventListenerInfo listener)
         {
             Event = @event;
-            EventProcessingLogBuilder = eventProcessingLogBuilder;
+            Listener = listener;
         }
 
         public Event Event { get; }
-        public EventProcessingLogBuilder EventProcessingLogBuilder { get; }
+        public EventListenerInfo Listener { get; }
         public object ConsistentHashKey => Event.ConsistentHashKey;
     }
 }

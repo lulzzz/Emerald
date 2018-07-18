@@ -3,11 +3,13 @@ using Akka.Routing;
 using Akka.Util.Internal;
 using Emerald.Abstractions;
 using Emerald.Application;
+using Emerald.Common;
 using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
 using System;
 using System.Collections.Generic;
+using EventHandler = Emerald.Queue.EventHandler;
 
 namespace Emerald
 {
@@ -23,21 +25,23 @@ namespace Emerald
 
         private readonly ActorSystem _actorSystem;
         private readonly string _applicationName;
+        private readonly IServiceCollection _serviceCollection;
+
         private readonly Dictionary<Type, IActorRef> _commandHandlerActorDictionary = new Dictionary<Type, IActorRef>();
         private readonly List<Type> _commandHandlerTypeList = new List<Type>();
         private readonly List<Tuple<Type, string>> _jobTypeList = new List<Tuple<Type, string>>();
         private QueueConfig _queueConfig;
-        private readonly IServiceCollection _serviceCollection;
-        private readonly Type _serviceScopeFactoryType;
-        private readonly Type _transactionScopeFactoryType;
 
-        private EmeraldSystemBuilder(string applicationName, IServiceCollection serviceCollection, Type serviceScopeFactoryType, Type transactionScopeFactoryType)
+        private Type _commandExecutionStrategyFactoryType = typeof(DefaultCommandExecutionStrategyFactory);
+        private readonly Type _serviceScopeFactoryType;
+        private Type _transactionScopeFactoryType = typeof(DefaultTransactionScopeFactory);
+
+        private EmeraldSystemBuilder(string applicationName, IServiceCollection serviceCollection, Type serviceScopeFactoryType)
         {
+            _actorSystem = ActorSystem.Create(applicationName, AkkaConfig);
             _applicationName = applicationName;
             _serviceCollection = serviceCollection;
             _serviceScopeFactoryType = serviceScopeFactoryType;
-            _transactionScopeFactoryType = transactionScopeFactoryType;
-            _actorSystem = ActorSystem.Create(_applicationName, AkkaConfig);
         }
 
         internal void AddCommandHandler<T>() where T : CommandHandler
@@ -53,26 +57,37 @@ namespace Emerald
             _queueConfig = new QueueConfig(_applicationName, connectionString, interval, listen);
             return _queueConfig;
         }
+        internal void SetCommandExecutionStrategyFactory(Type type)
+        {
+            _commandExecutionStrategyFactoryType = type;
+        }
+        internal void SetTransactionScopeFactory(Type type)
+        {
+            _transactionScopeFactoryType = type;
+        }
         internal void RegisterDependencies()
         {
+            _serviceCollection.AddScoped(typeof(ICommandExecutionStrategyFactory), _commandExecutionStrategyFactoryType);
             _serviceCollection.AddScoped(typeof(IServiceScopeFactory), _serviceScopeFactoryType);
             _serviceCollection.AddScoped(typeof(ITransactionScopeFactory), _transactionScopeFactoryType);
             _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
             _jobTypeList.ForEach(j => _serviceCollection.AddScoped(j.Item1));
             _queueConfig?.EventListenerTypes.ForEach(_serviceCollection.AddScoped);
-            _serviceCollection.AddSingleton(new CommandExecutor(_commandHandlerActorDictionary));
+            _serviceCollection.AddScoped(() => new CommandExecutor(_commandHandlerActorDictionary));
             _serviceCollection.AddSingleton(new EventPublisher(_queueConfig?.QueueDbAccessManager));
         }
         internal EmeraldSystem Build()
         {
             var serviceProvider = _serviceCollection.BuildServiceProvider();
             var commandExecutor = (CommandExecutor)serviceProvider.GetService(typeof(CommandExecutor));
+            var commandExecutorFactory = new Func<CommandExecutor>(() => new CommandExecutor(_commandHandlerActorDictionary));
+            var commandExecutionStategyFactory = (ICommandExecutionStrategyFactory)serviceProvider.GetService(typeof(ICommandExecutionStrategyFactory));
             var serviceScopeFactory = (IServiceScopeFactory)serviceProvider.GetService(typeof(IServiceScopeFactory));
             var transactionScopeFactory = (ITransactionScopeFactory)serviceProvider.GetService(typeof(ITransactionScopeFactory));
 
             foreach (var commandHandlerType in _commandHandlerTypeList)
             {
-                var commandHandlerActorProps = Props.Create(() => new CommandHandlerActor(commandHandlerType, serviceScopeFactory, transactionScopeFactory));
+                var commandHandlerActorProps = Props.Create(() => new CommandHandlerActor(commandHandlerType, commandExecutionStategyFactory, serviceScopeFactory, transactionScopeFactory));
                 var commandHandlerActor = _actorSystem.ActorOf(commandHandlerActorProps.WithRouter(new ConsistentHashingPool(1000)));
                 var commandTypes = GetCommandTypes(commandHandlerType, serviceScopeFactory);
                 commandTypes.ForEach(t => _commandHandlerActorDictionary.Add(t, commandHandlerActor));
@@ -88,7 +103,7 @@ namespace Emerald
             if (_queueConfig != null && _queueConfig.Listen && _queueConfig.EventListenerTypes.Length > 0)
             {
                 _queueConfig.EventTypes = GetEventTypes(_queueConfig.EventListenerTypes, serviceScopeFactory);
-                var eventHandlerActorProps = Props.Create(() => new EventHandlerActor(commandExecutor, _queueConfig, serviceScopeFactory, transactionScopeFactory)).WithRouter(new ConsistentHashingPool(1000));
+                var eventHandlerActorProps = Props.Create(() => new EventHandlerActor(commandExecutorFactory, _queueConfig, serviceScopeFactory, transactionScopeFactory)).WithRouter(new ConsistentHashingPool(1000));
                 var eventHandlerActor = _actorSystem.ActorOf(eventHandlerActorProps);
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(eventHandlerActor, _queueConfig));
                 var eventListenerActor = _actorSystem.ActorOf(eventListenerActorProps);
@@ -115,7 +130,7 @@ namespace Emerald
             {
                 foreach (var eventListenerType in eventListenerTypes)
                 {
-                    var eventListener = (EventListener)scope.ServiceProvider.GetService(eventListenerType);
+                    var eventListener = (EventHandler)scope.ServiceProvider.GetService(eventListenerType);
                     eventListener.Initialize();
 
                     foreach (var eventType in eventListener.GetEventTypes())
@@ -135,11 +150,11 @@ namespace Emerald
             return dictionary;
         }
 
-        public static EmeraldSystemBuilderFirstStepConfig Create<TServiceScopeFactory, TTransactionScopeFactory>(string applicationName, IServiceCollection serviceCollection) where TServiceScopeFactory : class, IServiceScopeFactory where TTransactionScopeFactory : class, ITransactionScopeFactory
+        public static EmeraldSystemBuilderFirstStepConfig Create<TServiceScopeFactory>(string applicationName, IServiceCollection serviceCollection) where TServiceScopeFactory : class, IServiceScopeFactory
         {
             if (ValidationHelper.IsNullOrEmptyOrWhiteSpace(applicationName)) throw new ArgumentException("'applicationName' is required.", nameof(applicationName));
             if (serviceCollection == null) throw new ArgumentNullException(nameof(serviceCollection));
-            return new EmeraldSystemBuilderFirstStepConfig(new EmeraldSystemBuilder(applicationName, serviceCollection, typeof(TServiceScopeFactory), typeof(TTransactionScopeFactory)));
+            return new EmeraldSystemBuilderFirstStepConfig(new EmeraldSystemBuilder(applicationName, serviceCollection, typeof(TServiceScopeFactory)));
         }
     }
 
@@ -170,6 +185,14 @@ namespace Emerald
             var queueConfig = _emeraldSystemBuilder.UseQueue(connectionString, interval, listen);
             configure(queueConfig);
             return this;
+        }
+        public void SetTransactionScopeFactory<TTransactionScopeFactory>() where TTransactionScopeFactory : class, ITransactionScopeFactory
+        {
+            _emeraldSystemBuilder.SetTransactionScopeFactory(typeof(TTransactionScopeFactory));
+        }
+        public void SetCommandExecutionStrategyFactory<TCommandExecutionStrategyFactory>() where TCommandExecutionStrategyFactory : class, ICommandExecutionStrategyFactory
+        {
+            _emeraldSystemBuilder.SetCommandExecutionStrategyFactory(typeof(TCommandExecutionStrategyFactory));
         }
         public EmeraldSystemBuilderSecondStepConfig RegisterDependencies()
         {

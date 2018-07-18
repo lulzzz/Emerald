@@ -4,8 +4,15 @@ namespace Emerald.Core
 {
     internal sealed class CommandExecutionResult
     {
-        public Guid CommandId { get; set; }
-        public object Output { get; set; }
-        public Exception Exception { get; set; }
+        public CommandExecutionResult(object output, Exception exception, CommandInfo info)
+        {
+            Output = output;
+            Exception = exception;
+            Info = info;
+        }
+
+        public object Output { get; }
+        public Exception Exception { get; }
+        public CommandInfo Info { get; }
     }
 }

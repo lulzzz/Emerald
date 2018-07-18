@@ -33,15 +33,11 @@ namespace Emerald.AspNetCore
         {
             var environmentName = configuration.Environment.Name;
             var logging = configuration.Environment.Logging;
-            var loggerConfiguration = new LoggerConfiguration().MinimumLevel.Information().Enrich.FromLogContext();
+            var loggerConfiguration = new LoggerConfiguration().MinimumLevel.Is(logging.Level).Enrich.FromLogContext();
 
             if (logging.Console.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Console();
             if (logging.ElasticSearch.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(logging.ElasticSearch.NodeUri)) { IndexFormat = logging.ElasticSearch.IndexFormat });
-
-            if (!string.Equals(environmentName, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase))
-            {
-                loggerConfiguration = loggerConfiguration.MinimumLevel.Override("Microsoft", LogEventLevel.Warning);
-            }
+            loggerConfiguration = loggerConfiguration.MinimumLevel.Override("Microsoft", string.Equals(environmentName, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase) ? logging.Level : LogEventLevel.Warning);
 
             Log.Logger = loggerConfiguration.CreateLogger();
         }

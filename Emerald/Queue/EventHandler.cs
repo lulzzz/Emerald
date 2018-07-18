@@ -7,15 +7,15 @@ using System.Threading.Tasks;
 
 namespace Emerald.Queue
 {
-    public abstract class EventListener
+    public abstract class EventHandler
     {
-        private readonly EventListenerConfig _config = new EventListenerConfig();
+        private readonly EventHandlerConfig _config = new EventHandlerConfig();
 
         protected internal CommandExecutor CommandExecutor { get; internal set; }
         protected internal IServiceScopeFactory ServiceScopeFactory { get; internal set; }
         protected internal ITransactionScopeFactory TransactionScopeFactory { get; internal set; }
 
-        protected abstract void Configure(EventListenerConfig config);
+        protected abstract void Configure(EventHandlerConfig config);
 
         internal void Initialize()
         {

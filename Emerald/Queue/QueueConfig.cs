@@ -22,7 +22,7 @@ namespace Emerald.Queue
         internal long Interval { get; }
         internal QueueDbAccessManager QueueDbAccessManager { get; }
 
-        public void AddEventListener<T>() where T : EventListener
+        public void AddEventHandler<T>() where T : EventHandler
         {
             if (!_eventListenerTypeList.Contains(typeof(T))) _eventListenerTypeList.Add(typeof(T));
         }
