@@ -22,7 +22,7 @@ namespace Emerald.Utils
                 }
                 catch
                 {
-                    if (retry > retryCount) throw;
+                    if (retry >= retryCount) throw;
                     retry++;
                 }
 
@@ -30,8 +30,10 @@ namespace Emerald.Utils
             }
         }
 
-        public static async Task ExecuteWithRetryForSqlException(Func<Task> action, int retryCount = 5, int delay = 1000)
+        public static async Task ExecuteWithRetryForSqlException(Func<Task> action)
         {
+            var retryCount = 5;
+            var delay = 1000;
             var retry = 1;
 
             bool IsSqlException(Exception exception)
@@ -50,12 +52,13 @@ namespace Emerald.Utils
                 }
                 catch (Exception ex)
                 {
-                    if (retry > retryCount) throw;
+                    if (retry >= retryCount) throw;
                     if (!IsSqlException(ex)) throw;
                     retry++;
                 }
 
                 await Task.Delay(TimeSpan.FromMilliseconds(delay));
+                delay = delay * 2;
             }
         }
     }
