@@ -5,15 +5,15 @@ namespace Emerald.AspNetCore.Configuration
 {
     public sealed class JobConfigurationSection
     {
-        public JobConfigurationSection(string cronTab, bool enabled, string name)
+        public JobConfigurationSection(bool enabled, string expression, string name)
         {
-            CronTab = cronTab;
             Enabled = enabled;
+            Expression = expression;
             Name = name;
         }
 
-        public string CronTab { get; }
         public bool Enabled { get; }
+        public string Expression { get; }
         public string Name { get; }
 
         internal static JobConfigurationSection[] Create(IConfiguration configuration)
@@ -22,10 +22,10 @@ namespace Emerald.AspNetCore.Configuration
 
             foreach (var item in configuration.GetSection("environment:jobs").GetChildren())
             {
-                var cronTab = item.GetValue<string>("crontab");
                 var enabled = item.GetValue<bool>("enabled");
+                var expression = item.GetValue<string>("expression");
                 var name = item.GetValue<string>("name");
-                jobConfigurationSectionList.Add(new JobConfigurationSection(cronTab, enabled, name));
+                jobConfigurationSectionList.Add(new JobConfigurationSection(enabled, expression, name));
             }
 
             return jobConfigurationSectionList.ToArray();

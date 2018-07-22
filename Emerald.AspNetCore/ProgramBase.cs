@@ -1,5 +1,5 @@
 ﻿using Emerald.AspNetCore.Configuration;
-using Emerald.AspNetCore.Persistence;
+using Emerald.AspNetCore.EntityFrameworkCore;
 using Emerald.Utils;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
@@ -19,6 +19,7 @@ namespace Emerald.AspNetCore
         {
             var configurationRoot = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile("appsettings.json", false).Build();
             var configuration = new ApplicationConfiguration(configurationRoot);
+
             ConfiguringLogging(configuration);
             ConfiguringDatabase(configuration);
 
@@ -49,38 +50,45 @@ namespace Emerald.AspNetCore
         {
             if (configuration.Environment.ApplicationDb.MigrateDatabaseToLatestVersion)
             {
-                using (var dbContext = DbContextFactory.Create<TDbContext>(configuration.Environment.ApplicationDb.ConnectionString))
+                try
                 {
-                    try
+                    using (var dbContext = DbContextFactory.Create<TDbContext>(configuration.Environment.ApplicationDb.ConnectionString))
                     {
                         dbContext.Database.Migrate();
                     }
-                    catch (Exception ex)
-                    {
-                        Log.Logger.Error(LoggerHelper.CreateLogContent("Error on migrating database."), ex);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Logger.Error(LoggerHelper.CreateLog("Error on migrating database."), ex);
                 }
             }
 
             if (configuration.Environment.ApplicationDb.ExecuteSeed)
             {
-                using (var dbContext = DbContextFactory.Create<TDbContext>(configuration.Environment.ApplicationDb.ConnectionString))
-                using (var transaction = dbContext.Database.BeginTransaction())
+                try
                 {
-                    var dbInitializer = Activator.CreateInstance<TDbInitializer>();
-
-                    dbInitializer.Initialize();
-
-                    try
+                    using (var dbContext = DbContextFactory.Create<TDbContext>(configuration.Environment.ApplicationDb.ConnectionString))
+                    using (var transaction = dbContext.Database.BeginTransaction())
                     {
-                        dbInitializer.Seed(dbContext);
-                        transaction.Commit();
+                        var dbInitializer = Activator.CreateInstance<TDbInitializer>();
+
+                        dbInitializer.Initialize();
+
+                        try
+                        {
+                            dbInitializer.Seed(dbContext);
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        transaction.Rollback();
-                        Log.Logger.Error(LoggerHelper.CreateLogContent("Error on running seed."), ex);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Logger.Error(LoggerHelper.CreateLog("Error on running db seed."), ex);
                 }
             }
         }

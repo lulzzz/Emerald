@@ -1,65 +1,52 @@
 ﻿using System;
-using System.Data.SqlClient;
 using System.Threading.Tasks;
 
 namespace Emerald.Utils
 {
     public static class RetryHelper
     {
-        public static async Task Execute(Func<Task> action, int retryCount = 5, int delay = 1000)
+        public static Task Execute(Func<Task> operation)
         {
-            await Execute<object>(async () => { await action(); return null; }, retryCount, delay);
+            return Execute(operation, TimeSpan.FromSeconds(30), 5, ex => true);
         }
-        public static async Task<TResult> Execute<TResult>(Func<Task<TResult>> action, int retryCount = 5, int delay = 1000)
+        public static async Task Execute(Func<Task> operation, TimeSpan maxDelay, int maxRetryCount, Func<Exception, bool> shouldRetryOn)
         {
-            var retry = 1;
+            await Execute<object>(async () => { await operation(); return null; }, maxDelay, maxRetryCount, shouldRetryOn);
+        }
+
+        public static Task<TResult> Execute<TResult>(Func<Task<TResult>> operation)
+        {
+            return Execute(operation, TimeSpan.FromSeconds(30), 5, ex => true);
+        }
+        public static async Task<TResult> Execute<TResult>(Func<Task<TResult>> operation, TimeSpan maxDelay, int maxRetryCount, Func<Exception, bool> shouldRetryOn)
+        {
+            var retryNumber = 1;
+            var delay = GetDelay(null, maxDelay);
 
             while (true)
             {
                 try
                 {
-                    return await action();
-                }
-                catch
-                {
-                    if (retry >= retryCount) throw;
-                    retry++;
-                }
-
-                await Task.Delay(TimeSpan.FromMilliseconds(delay));
-            }
-        }
-
-        public static async Task ExecuteWithRetryForSqlException(Func<Task> action)
-        {
-            var retryCount = 5;
-            var delay = 1000;
-            var retry = 1;
-
-            bool IsSqlException(Exception exception)
-            {
-                if (exception == null) return false;
-                if (exception.GetType().IsAssignableFrom(typeof(SqlException))) return true;
-                return IsSqlException(exception.InnerException);
-            }
-
-            while (true)
-            {
-                try
-                {
-                    await action();
-                    return;
+                    return await operation();
                 }
                 catch (Exception ex)
                 {
-                    if (retry >= retryCount) throw;
-                    if (!IsSqlException(ex)) throw;
-                    retry++;
+                    if (shouldRetryOn.Invoke(ex) == false) throw;
+                    if (retryNumber >= maxRetryCount) throw;
+                    retryNumber++;
                 }
 
-                await Task.Delay(TimeSpan.FromMilliseconds(delay));
-                delay = delay * 2;
+                await Task.Delay(delay);
+
+                delay = GetDelay(delay, maxDelay);
             }
+        }
+
+        private static TimeSpan GetDelay(TimeSpan? previousDelay, TimeSpan maxDelay)
+        {
+            var delay = previousDelay.HasValue ? TimeSpan.FromMilliseconds(previousDelay.Value.TotalMilliseconds * 2) : TimeSpan.FromSeconds(1);
+            delay = delay > maxDelay ? maxDelay : delay;
+            return delay;
         }
     }
 }

@@ -5,9 +5,9 @@ namespace Emerald.Queue
 {
     public sealed class QueueConfig
     {
-        private readonly List<Type> _eventListenerTypeList = new List<Type>();
+        private readonly List<Type> _eventHandlerTypeList = new List<Type>();
 
-        internal QueueConfig(string applicationName, string connectionString, long interval, bool listen)
+        internal QueueConfig(string applicationName, string connectionString, TimeSpan interval, bool listen)
         {
             ConnectionString = connectionString;
             Interval = interval;
@@ -16,15 +16,14 @@ namespace Emerald.Queue
         }
 
         internal string ConnectionString { get; }
+        internal Type[] EventHandlerTypes => _eventHandlerTypeList.ToArray();
+        internal TimeSpan Interval { get; }
         internal bool Listen { get; }
-        internal Type[] EventListenerTypes => _eventListenerTypeList.ToArray();
-        internal Dictionary<Type, List<Type>> EventTypes { get; set; }
-        internal long Interval { get; }
         internal QueueDbAccessManager QueueDbAccessManager { get; }
 
         public void AddEventHandler<T>() where T : EventHandler
         {
-            if (!_eventListenerTypeList.Contains(typeof(T))) _eventListenerTypeList.Add(typeof(T));
+            if (!_eventHandlerTypeList.Contains(typeof(T))) _eventHandlerTypeList.Add(typeof(T));
         }
     }
 }

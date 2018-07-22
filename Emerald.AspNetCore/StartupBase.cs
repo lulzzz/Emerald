@@ -1,13 +1,14 @@
-﻿using Emerald.AspNetCore.Common;
-using Emerald.AspNetCore.Configuration;
+﻿using Emerald.AspNetCore.Configuration;
+using Emerald.AspNetCore.EntityFrameworkCore;
 using Emerald.AspNetCore.Extensions;
-using Emerald.AspNetCore.Infrastructure;
-using Emerald.AspNetCore.Persistence;
+using Emerald.AspNetCore.System;
+using Emerald.System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using IServiceCollection = Microsoft.Extensions.DependencyInjection.IServiceCollection;
 
 namespace Emerald.AspNetCore
 {
@@ -15,25 +16,30 @@ namespace Emerald.AspNetCore
     {
         protected StartupBase(IConfiguration configuration)
         {
-            Configuration = configuration;
-            ApplicationConfiguration = new ApplicationConfiguration(configuration);
+            Configuration = new ApplicationConfiguration(configuration);
         }
 
-        protected IConfiguration Configuration { get; }
-        protected IApplicationConfiguration ApplicationConfiguration { get; }
+        protected IApplicationConfiguration Configuration { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<TDbContext>(opt => opt.UseSqlServer(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString));
+            services.AddDbContext<TDbContext>(opt => opt.UseSqlServer(Configuration.Environment.ApplicationDb.ConnectionString));
+
             ConfigureDependencies(services);
-            services.AddEmerald<CommandExecutionStrategyFactory, ServiceScopeFactory, TransactionScopeFactory<TDbContext>>(Configuration, ConfigureEmerald);
+
+            services.AddEmerald<ServiceScopeFactory>(Configuration, opt =>
+            {
+                opt.SetCommandExecutionStrategy<SqlAzureCommandExecutionStrategy>();
+                opt.SetTransactionScopeFactory<TransactionScopeFactory<TDbContext>>();
+                ConfigureEmerald(opt);
+            });
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             app.UseEmerald();
-            env.ApplicationName = ApplicationConfiguration.Environment.ApplicationName;
-            env.EnvironmentName = ApplicationConfiguration.Environment.Name;
+            env.ApplicationName = Configuration.Environment.ApplicationName;
+            env.EnvironmentName = Configuration.Environment.Name;
         }
 
         protected abstract void ConfigureDependencies(IServiceCollection serviceCollection);
@@ -41,7 +47,7 @@ namespace Emerald.AspNetCore
 
         protected TDbContext CreateDbContext()
         {
-            return DbContextFactory.Create<TDbContext>(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString);
+            return DbContextFactory.Create<TDbContext>(Configuration.Environment.ApplicationDb.ConnectionString);
         }
     }
 }

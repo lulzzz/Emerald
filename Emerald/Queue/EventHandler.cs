@@ -1,6 +1,4 @@
-﻿using Emerald.Abstractions;
-using Emerald.Core;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,25 +9,33 @@ namespace Emerald.Queue
     {
         private readonly EventHandlerConfig _config = new EventHandlerConfig();
 
-        protected internal CommandExecutor CommandExecutor { get; internal set; }
-        protected internal IServiceScopeFactory ServiceScopeFactory { get; internal set; }
-        protected internal ITransactionScopeFactory TransactionScopeFactory { get; internal set; }
-
         protected abstract void Configure(EventHandlerConfig config);
 
         internal void Initialize()
         {
             Configure(_config);
         }
-
         internal Task Handle(object @event)
         {
             return _config.EventHandlerDictionary[@event.GetType()](@event);
         }
-
         internal List<Type> GetEventTypes()
         {
             return _config.EventHandlerDictionary.Keys.ToList();
+        }
+    }
+
+    public sealed class EventHandlerConfig
+    {
+        internal EventHandlerConfig()
+        {
+        }
+
+        internal Dictionary<Type, Func<object, Task>> EventHandlerDictionary { get; } = new Dictionary<Type, Func<object, Task>>();
+
+        public void RegisterEventHandler<T>(Func<T, Task> handler)
+        {
+            EventHandlerDictionary.Add(typeof(T), e => handler((T)e));
         }
     }
 }

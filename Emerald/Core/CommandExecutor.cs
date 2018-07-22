@@ -7,10 +7,10 @@ namespace Emerald.Core
 {
     public sealed class CommandExecutor
     {
-        private readonly Dictionary<Type, IActorRef> _commandHandlerDictionary;
-        private readonly List<CommandInfo> _commandInfoList = new List<CommandInfo>();
+        private readonly Dictionary<Type, Tuple<Type, IActorRef>> _commandHandlerDictionary;
+        private readonly List<ICommandInfo> _commandList = new List<ICommandInfo>();
 
-        internal CommandExecutor(Dictionary<Type, IActorRef> commandHandlerDictionary)
+        internal CommandExecutor(Dictionary<Type, Tuple<Type, IActorRef>> commandHandlerDictionary)
         {
             _commandHandlerDictionary = commandHandlerDictionary;
         }
@@ -19,23 +19,22 @@ namespace Emerald.Core
         {
             if (command == null) throw new ArgumentNullException(nameof(command));
 
-            var resultTask = _commandHandlerDictionary[command.GetType()].Ask<CommandExecutionResult>(command);
-            var result = await resultTask;
+            await _commandHandlerDictionary[command.GetType()].Item2.Ask<Command>(command);
 
-            _commandInfoList.Add(result.Info);
+            _commandList.Add(command);
 
-            if (result.Exception != null)
+            if (command.AsCommandInfo().Exception != null)
             {
-                throw result.Exception;
+                throw command.AsCommandInfo().Exception;
             }
 
-            return (T)result.Output;
+            return (T)command.AsCommandInfo().Output;
         }
         public async Task Execute(Command command)
         {
             await Execute<object>(command);
         }
 
-        public CommandInfo[] GetInfo() => _commandInfoList.ToArray();
+        public ICommandInfo[] GetCommands() => _commandList.ToArray();
     }
 }

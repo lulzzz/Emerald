@@ -15,5 +15,16 @@
         {
             return $"{(Code.HasValue ? $"{Code}: " : string.Empty)}{Message}";
         }
+        public override bool Equals(object obj)
+        {
+            return obj is Error other && other.Code == Code && other.Message == Message;
+        }
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return (Code.HasValue ? Code.GetHashCode() * 397 : 0) ^ (Message != null ? Message.GetHashCode() : 0);
+            }
+        }
     }
 }

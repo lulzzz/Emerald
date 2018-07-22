@@ -1,8 +1,7 @@
-﻿using Emerald.Application;
+﻿using Emerald.Core;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -11,16 +10,49 @@ namespace Emerald.Utils
 {
     public static class LoggerHelper
     {
-        public static readonly JsonSerializerSettings JsonSerializerSettings = new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() };
+        public static string CreateLog(string message)
+        {
+            return new { message }.ToJson(Formatting.Indented);
+        }
 
-        public static string CreateLogContent(string message)
+        public static async Task<string> CreateLog(HttpResponseMessage responseMessage)
         {
-            return JsonHelper.Serialize(new { message });
+            var log = new
+            {
+                statusCode = responseMessage.StatusCode,
+                content = responseMessage.Content != null ? await responseMessage.Content.ReadAsStringAsync() : string.Empty,
+                headers = BuildHeaderLogObject(responseMessage.Headers)
+            };
+
+            return log.ToJson(Formatting.Indented);
         }
-        public static string CreateLogContent(string message, Exception exception)
+        public static async Task<string> CreateLog(HttpRequestMessage requestMessage)
         {
-            return JsonHelper.Serialize(new { message, exception = exception.ToString() });
+            var log = new
+            {
+                method = requestMessage.Method.ToString(),
+                uri = requestMessage.RequestUri.ToString(),
+                content = requestMessage.Content != null ? await requestMessage.Content.ReadAsStringAsync() : string.Empty,
+                headers = BuildHeaderLogObject(requestMessage.Headers)
+            };
+
+            return log.ToJson(Formatting.Indented);
         }
+
+        public static object CreateLogObject(ICommandInfo[] commands)
+        {
+            var log = commands.Select(c => new
+            {
+                name = c.GetType().Name,
+                startedAt = c.StartedAt,
+                result = c.Result,
+                consistentHashKey = c.ConsistentHashKey,
+                executionTime = c.ExecutionTime
+            });
+
+            return log;
+        }
+
         public static async Task<string> CreateLogContent(string message, object parameters, HttpResponseMessage responseMessage)
         {
             return JsonHelper.Serialize(new

@@ -1,6 +1,6 @@
 ﻿using Akka.Actor;
-using Emerald.Abstractions;
-using Emerald.Application;
+using Emerald.Common;
+using Emerald.System;
 using System;
 using System.Threading.Tasks;
 
@@ -8,39 +8,38 @@ namespace Emerald.Core
 {
     internal sealed class CommandHandlerActor : ReceiveActor
     {
+        private readonly CommandExecutionStrategy _commandExecutionStrategy;
         private readonly Type _commandHandlerType;
-        private readonly ICommandExecutionStrategyFactory _commandExecutionStrategyFactory;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ITransactionScopeFactory _transactionScopeFactory;
 
-        public CommandHandlerActor(
-            Type commandHandlerType,
-            ICommandExecutionStrategyFactory commandExecutionStrategyFactory,
-            IServiceScopeFactory serviceScopeFactory,
-            ITransactionScopeFactory transactionScopeFactory)
+        public CommandHandlerActor(CommandExecutionStrategy commandExecutionStrategy, Type commandHandlerType, IServiceScopeFactory serviceScopeFactory, ITransactionScopeFactory transactionScopeFactory)
         {
+            _commandExecutionStrategy = commandExecutionStrategy;
             _commandHandlerType = commandHandlerType;
-            _commandExecutionStrategyFactory = commandExecutionStrategyFactory;
             _serviceScopeFactory = serviceScopeFactory;
             _transactionScopeFactory = transactionScopeFactory;
+
             ReceiveAsync<Command>(Handle);
         }
 
         public async Task Handle(Command command)
         {
-            var startedAt = DateTime.UtcNow;
-            var status = "Success";
-            Exception exception = null;
-            object output = null;
+            command.Started();
+
+            var exception = default(Exception);
+            var isError = false;
+            var output = default(object);
 
             try
             {
-                await _commandExecutionStrategyFactory.Create().Execute(async () =>
+                await _commandExecutionStrategy.Execute(async () =>
                 {
-                    using (var scope = _serviceScopeFactory.CreateScope())
+                    using (var scope = _serviceScopeFactory.Create())
                     using (var transaction = _transactionScopeFactory.Create(scope))
                     {
                         var commandHandler = (CommandHandler)scope.ServiceProvider.GetService(_commandHandlerType);
+
                         commandHandler.Initialize();
 
                         try
@@ -49,7 +48,7 @@ namespace Emerald.Core
 
                             if (output is IOperationResult operationResult && operationResult.IsError)
                             {
-                                status = "Failed";
+                                isError = true;
                                 transaction.Rollback();
                             }
                             else
@@ -59,14 +58,7 @@ namespace Emerald.Core
                         }
                         catch
                         {
-                            try
-                            {
-                                transaction.Rollback();
-                            }
-                            catch (InvalidOperationException)
-                            {
-                            }
-
+                            transaction.Rollback();
                             throw;
                         }
                     }
@@ -74,13 +66,13 @@ namespace Emerald.Core
             }
             catch (Exception ex)
             {
-                status = "Failed";
+                isError = true;
                 exception = ex;
             }
 
-            var commandInfo = new CommandInfo(command.GetType().Name, startedAt, status, command.GetConsistentHashKey());
-            var commandExecutionResult = new CommandExecutionResult(output, exception, commandInfo);
-            Context.Sender.Tell(commandExecutionResult);
+            command.Completed(exception, output, isError ? Command.ErrorResult : Command.SuccessResult);
+
+            Context.Sender.Tell(command);
         }
     }
 }

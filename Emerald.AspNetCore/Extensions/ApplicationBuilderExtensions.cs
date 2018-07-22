@@ -1,6 +1,4 @@
-﻿using Emerald.AspNetCore.Common;
-using Emerald.AspNetCore.Configuration;
-using Emerald.AspNetCore.Infrastructure;
+﻿using Emerald.AspNetCore.System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,15 +12,7 @@ namespace Emerald.AspNetCore.Extensions
             var applicationLifetime = app.ApplicationServices.GetService<IApplicationLifetime>();
             applicationLifetime.ApplicationStopped.Register(() => Registry.EmeraldSystem.Terminate().Wait());
 
-            var configuration = app.ApplicationServices.GetService<IApplicationConfiguration>();
             var options = Registry.EmeraldOptions;
-
-            if (options.AuthenticationEnabled)
-            {
-                var authenticationService = app.ApplicationServices.GetService(options.AuthenticationServiceType);
-                app.UseMiddleware<AuthenticationMiddleware>(authenticationService, configuration);
-                app.UseAuthentication();
-            }
 
             app.UseMvc();
 

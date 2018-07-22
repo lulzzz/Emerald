@@ -1,5 +1,4 @@
-﻿using Emerald.Application;
-using Emerald.Persistence;
+﻿using Emerald.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -24,6 +23,7 @@ namespace Emerald.AspNetCore.Extensions
             if (operationResult.IsUnauthorized) return new StatusCodeResult(StatusCodes.Status401Unauthorized);
             throw new NotSupportedException();
         }
+
         public static IActionResult OperationResult<T>(this Controller controller, OperationResult<T> operationResult)
         {
             return OperationResult(controller, operationResult, r => r, string.Empty);
@@ -32,6 +32,7 @@ namespace Emerald.AspNetCore.Extensions
         {
             return OperationResult(controller, operationResult, r => r, location);
         }
+
         public static IActionResult OperationResult<TResult, TViewModel>(this Controller controller, OperationResult<TResult> operationResult, Func<TResult, TViewModel> viewModelFactory)
         {
             return OperationResult(controller, operationResult, viewModelFactory, string.Empty);
@@ -48,6 +49,7 @@ namespace Emerald.AspNetCore.Extensions
             if (operationResult.IsUnauthorized) return new StatusCodeResult(StatusCodes.Status401Unauthorized);
             throw new NotSupportedException();
         }
+
         public static IActionResult QueryResult<TResult>(this Controller controller, QueryResult<TResult> queryResult)
         {
             return QueryResult(controller, queryResult, r => r);
