@@ -16,12 +16,12 @@ namespace Emerald.AspNetCore.Filters
 {
     internal sealed class LoggerActionFilter : IActionFilter
     {
-        private readonly CommandExecutor _commandExecutor;
+        private readonly ICommandExecutor _commandExecutor;
         private readonly IApplicationConfiguration _configuration;
         private readonly ILogger<LoggerActionFilter> _logger;
         private DateTime _startedAt;
 
-        public LoggerActionFilter(CommandExecutor commandExecutor, IApplicationConfiguration configuration, ILogger<LoggerActionFilter> logger)
+        public LoggerActionFilter(ICommandExecutor commandExecutor, IApplicationConfiguration configuration, ILogger<LoggerActionFilter> logger)
         {
             _commandExecutor = commandExecutor;
             _configuration = configuration;

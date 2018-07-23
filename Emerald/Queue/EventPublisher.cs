@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Emerald.Queue
 {
-    public sealed class EventPublisher
+    public sealed class EventPublisher : IEventPublisher
     {
         private readonly QueueDbAccessManager _queueDbAccessManager;
 
@@ -25,11 +25,16 @@ namespace Emerald.Queue
             await _queueDbAccessManager.AddEvent(type, body, consistentHashKey);
         }
 
-        public static async Task<EventPublisher> Create(string applicationName, string connectionString)
+        public static async Task<IEventPublisher> Create(string applicationName, string connectionString)
         {
             var queueDbAccessManager = new QueueDbAccessManager(applicationName, connectionString);
             await queueDbAccessManager.CreateQueueDbIfNeeded();
             return new EventPublisher(queueDbAccessManager);
         }
+    }
+
+    public interface IEventPublisher
+    {
+        Task Publish(object @event);
     }
 }

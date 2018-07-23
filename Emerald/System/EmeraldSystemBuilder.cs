@@ -76,10 +76,10 @@ namespace Emerald.System
             if (_queueConfig != null)
             {
                 _queueConfig.EventHandlerTypes.ForEach(_serviceCollection.AddScoped);
-                _serviceCollection.AddSingleton(new EventPublisher(_queueConfig.QueueDbAccessManager));
+                _serviceCollection.AddSingleton<IEventPublisher>(new EventPublisher(_queueConfig.QueueDbAccessManager));
             }
 
-            _serviceCollection.AddScoped(() => new CommandExecutor(_commandHandlerActorDictionary));
+            _serviceCollection.AddScoped<ICommandExecutor>(() => new CommandExecutor(_commandHandlerActorDictionary));
         }
 
         internal EmeraldSystem Build()

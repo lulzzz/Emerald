@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Emerald.Core
 {
-    public sealed class CommandExecutor
+    internal sealed class CommandExecutor : ICommandExecutor
     {
         private readonly Dictionary<Type, Tuple<Type, IActorRef>> _commandHandlerDictionary;
         private readonly List<ICommandInfo> _commandList = new List<ICommandInfo>();
@@ -36,5 +36,12 @@ namespace Emerald.Core
         }
 
         public ICommandInfo[] GetCommands() => _commandList.ToArray();
+    }
+
+    public interface ICommandExecutor
+    {
+        Task<T> Execute<T>(Command command);
+        Task Execute(Command command);
+        ICommandInfo[] GetCommands();
     }
 }

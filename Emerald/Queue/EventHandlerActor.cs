@@ -49,7 +49,7 @@ namespace Emerald.Queue
                     using (var scope = _serviceScopeFactory.Create())
                     {
                         var handlerStartedAt = DateTime.UtcNow;
-                        var commandExecutor = (CommandExecutor)scope.ServiceProvider.GetService(typeof(CommandExecutor));
+                        var commandExecutor = (ICommandExecutor)scope.ServiceProvider.GetService(typeof(ICommandExecutor));
                         var result = EventHandlerInfo.SuccessResult;
 
                         try

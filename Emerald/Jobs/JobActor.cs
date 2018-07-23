@@ -37,7 +37,7 @@ namespace Emerald.Jobs
 
             using (var scope = _serviceScopeFactory.Create())
             {
-                var commandExecutor = (CommandExecutor)scope.ServiceProvider.GetService(typeof(CommandExecutor));
+                var commandExecutor = (ICommandExecutor)scope.ServiceProvider.GetService(typeof(ICommandExecutor));
 
                 try
                 {
