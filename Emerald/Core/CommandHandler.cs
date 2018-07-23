@@ -35,7 +35,7 @@ namespace Emerald.Core
 
         public void RegisterCommandHandler<T>(Func<T, Task> handler) where T : Command
         {
-            CommandHandlerDictionary.Add(typeof(T), cmd => { handler((T)cmd); return null; });
+            CommandHandlerDictionary.Add(typeof(T), cmd => { handler((T)cmd); return Task.FromResult<object>(null); });
         }
         public void RegisterCommandHandler<TCommand, TResult>(Func<TCommand, Task<TResult>> handler) where TCommand : Command
         {

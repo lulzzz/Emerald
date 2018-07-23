@@ -2,7 +2,6 @@
 using Emerald.AspNetCore.EntityFrameworkCore;
 using Emerald.AspNetCore.Extensions;
 using Emerald.AspNetCore.System;
-using Emerald.System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;

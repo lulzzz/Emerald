@@ -24,9 +24,8 @@ namespace Emerald.AspNetCore
             ConfiguringDatabase(configuration);
 
             var builder = WebHost.CreateDefaultBuilder(args).UseStartup<TStartup>().UseSerilog();
-            ConfiguringDevelopmentHost(builder, configuration);
-
             var host = builder.Build();
+
             host.Run();
         }
 
@@ -41,10 +40,6 @@ namespace Emerald.AspNetCore
             loggerConfiguration = loggerConfiguration.MinimumLevel.Override("Microsoft", string.Equals(environmentName, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase) ? logging.Level : LogEventLevel.Warning);
 
             Log.Logger = loggerConfiguration.CreateLogger();
-        }
-        private static void ConfiguringDevelopmentHost(IWebHostBuilder builder, ApplicationConfiguration configuration)
-        {
-            if (string.Equals(configuration.Environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase)) builder.UseUrls(configuration.Environment.Development.Host);
         }
         private static void ConfiguringDatabase(ApplicationConfiguration configuration)
         {
