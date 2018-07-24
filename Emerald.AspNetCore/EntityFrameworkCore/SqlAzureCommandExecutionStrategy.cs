@@ -20,6 +20,11 @@ namespace Emerald.AspNetCore.EntityFrameworkCore
                 return SqlServerTransientExceptionDetector.ShouldRetryOn(exception);
             }
 
+            if (exception is TimeoutException && exception.Source == "Core .Net SqlClient Data Provider")
+            {
+                return true;
+            }
+
             return IsSqlAzureException(exception.InnerException);
         }
     }

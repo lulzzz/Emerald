@@ -7,7 +7,7 @@ namespace Emerald.System
     public abstract class CommandExecutionStrategy
     {
         protected virtual TimeSpan MaxDelay { get; } = TimeSpan.FromSeconds(30);
-        protected virtual int MaxRetryCount { get; } = 5;
+        protected virtual int MaxRetryCount { get; } = 10;
 
         public Task Execute(Func<Task> operation)
         {
