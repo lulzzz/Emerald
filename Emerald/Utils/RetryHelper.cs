@@ -16,7 +16,7 @@ namespace Emerald.Utils
 
         public static Task<TResult> Execute<TResult>(Func<Task<TResult>> operation)
         {
-            return Execute(operation, TimeSpan.FromSeconds(30), 5, ex => true);
+            return Execute(operation, TimeSpan.FromSeconds(30), 10, ex => true);
         }
         public static async Task<TResult> Execute<TResult>(Func<Task<TResult>> operation, TimeSpan maxDelay, int maxRetryCount, Func<Exception, bool> shouldRetryOn)
         {

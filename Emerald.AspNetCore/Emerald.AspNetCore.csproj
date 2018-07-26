@@ -10,10 +10,10 @@
     <PackageTags>emerald</PackageTags>
     <PackageProjectUrl>https://github.com/DmitriySidorov/emerald</PackageProjectUrl>
     <PackageIconUrl>https://github.com/DmitriySidorov/emerald/raw/master/icon.png</PackageIconUrl>
-    <Version>1.8.1</Version>
+    <Version>1.8.2</Version>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Emerald" Version="1.8.1" />
+    <PackageReference Include="Emerald" Version="1.8.2" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.App" Version="2.1.2" />
     <PackageReference Include="Serilog.AspNetCore" Version="2.1.1" />

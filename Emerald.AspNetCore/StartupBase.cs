@@ -22,7 +22,7 @@ namespace Emerald.AspNetCore
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<TDbContext>(opt => opt.UseSqlServer(Configuration.Environment.ApplicationDb.ConnectionString));
+            services.AddDbContextPool<TDbContext>(opt => opt.UseSqlServer(Configuration.Environment.ApplicationDb.ConnectionString));
 
             ConfigureDependencies(services);
 

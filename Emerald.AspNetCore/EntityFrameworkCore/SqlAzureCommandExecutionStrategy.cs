@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal;
 using System;
+using System.ComponentModel;
 using System.Data.SqlClient;
 
 namespace Emerald.AspNetCore.EntityFrameworkCore
@@ -20,7 +21,7 @@ namespace Emerald.AspNetCore.EntityFrameworkCore
                 return SqlServerTransientExceptionDetector.ShouldRetryOn(exception);
             }
 
-            if (exception is TimeoutException && exception.Source == "Core .Net SqlClient Data Provider")
+            if (exception is Win32Exception && exception.Message == "Unknown error 258")
             {
                 return true;
             }
