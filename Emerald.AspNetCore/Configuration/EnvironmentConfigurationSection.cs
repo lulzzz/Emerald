@@ -9,7 +9,7 @@ namespace Emerald.AspNetCore.Configuration
             ApplicationDb = new ApplicationDbConfigurationSection(configuration);
             ApplicationInsights = new ApplicationInsightsConfigurationSection(configuration);
             ApplicationName = configuration.GetSection("environment").GetValue<string>("applicationName");
-            Jwt = new JwtConfigurationSection(configuration);
+            Development = new DevelopmentConfigurationSection(configuration);
             Logging = new LoggingConfigurationSection(configuration);
             Name = configuration.GetSection("environment").GetValue<string>("name");
             Jobs = JobConfigurationSection.Create(configuration);
@@ -19,7 +19,7 @@ namespace Emerald.AspNetCore.Configuration
         public ApplicationDbConfigurationSection ApplicationDb { get; }
         public ApplicationInsightsConfigurationSection ApplicationInsights { get; }
         public string ApplicationName { get; }
-        public JwtConfigurationSection Jwt { get; }
+        public DevelopmentConfigurationSection Development { get; }
         public LoggingConfigurationSection Logging { get; }
         public string Name { get; }
         public JobConfigurationSection[] Jobs { get; }

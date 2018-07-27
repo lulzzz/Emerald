@@ -24,8 +24,9 @@ namespace Emerald.AspNetCore
             ConfiguringDatabase(configuration);
 
             var builder = WebHost.CreateDefaultBuilder(args).UseStartup<TStartup>().UseSerilog();
-            var host = builder.Build();
+            ConfiguringDevelopmentHost(builder, configuration);
 
+            var host = builder.Build();
             host.Run();
         }
 
@@ -86,6 +87,10 @@ namespace Emerald.AspNetCore
                     Log.Logger.Error(LoggerHelper.CreateLog("Error on running db seed."), ex);
                 }
             }
+        }
+        private static void ConfiguringDevelopmentHost(IWebHostBuilder builder, ApplicationConfiguration configuration)
+        {
+            if (string.Equals(configuration.Environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase)) builder.UseUrls(configuration.Environment.Development.Host);
         }
     }
 }
