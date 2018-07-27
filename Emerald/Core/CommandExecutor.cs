@@ -30,9 +30,9 @@ namespace Emerald.Core
 
             return (T)command.AsCommandInfo().Output;
         }
-        public async Task Execute(Command command)
+        public Task Execute(Command command)
         {
-            await Execute<object>(command);
+            return Execute<object>(command);
         }
 
         public ICommandInfo[] GetCommands() => _commandList.ToArray();
