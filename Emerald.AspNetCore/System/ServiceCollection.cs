@@ -31,10 +31,5 @@ namespace Emerald.AspNetCore.System
         {
             _serviceCollection.AddScoped(serviceType, implementationType);
         }
-
-        public IServiceProvider BuildServiceProvider()
-        {
-            return _serviceCollection.BuildServiceProvider();
-        }
     }
 }

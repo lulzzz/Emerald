@@ -3,7 +3,6 @@ using Emerald.Core;
 using Emerald.Jobs;
 using Emerald.Queue;
 using Emerald.System;
-using Emerald.Utils;
 using System;
 using System.Linq;
 
@@ -13,12 +12,6 @@ namespace Emerald.AspNetCore.System
     {
         private readonly EmeraldSystemBuilderFirstStepConfig _emeraldSystemBuilderConfig;
         private readonly IApplicationConfiguration _configuration;
-
-        internal bool MemoryCacheEnabled { get; private set; }
-        internal bool SwaggerEnabled { get; private set; }
-        internal string SwaggerEndpoint { get; private set; }
-        internal string SwaggerApiName { get; private set; }
-        internal string SwaggerApiVersion { get; private set; }
 
         internal EmeraldOptions(EmeraldSystemBuilderFirstStepConfig emeraldSystemBuilderConfig, IApplicationConfiguration configuration)
         {
@@ -30,10 +23,9 @@ namespace Emerald.AspNetCore.System
         {
             _emeraldSystemBuilderConfig.AddCommandHandler<T>();
         }
-        public void AddJob<T>() where T : IJob
+        public void UseJobs(Action<JobsConfig> configure)
         {
-            var jobConig = _configuration.Environment.Jobs.Single(c => c.Name == typeof(T).Name);
-            _emeraldSystemBuilderConfig.AddJob<T>(jobConig.Enabled, jobConig.Expression);
+            _emeraldSystemBuilderConfig.UseJobs(cfg => configure(new JobsConfig(cfg, _configuration)));
         }
         public void UseQueue(Action<QueueConfig> configure)
         {
@@ -51,17 +43,24 @@ namespace Emerald.AspNetCore.System
         {
             _emeraldSystemBuilderConfig.SetCommandExecutionStrategy<T>();
         }
+    }
 
-        public void UseMemoryCache()
+    public sealed class JobsConfig
+    {
+        private readonly Jobs.JobsConfig _jobsConfig;
+        private readonly IApplicationConfiguration _configuration;
+
+        internal JobsConfig(Jobs.JobsConfig jobsConfig, IApplicationConfiguration configuration)
         {
-            MemoryCacheEnabled = true;
+            _jobsConfig = jobsConfig;
+            _configuration = configuration;
         }
-        public void UseSwagger(string endpoint, string name, string version)
+
+        public JobsConfig AddJob<T>() where T : IJob
         {
-            SwaggerEnabled = true;
-            SwaggerEndpoint = endpoint;
-            SwaggerApiName = name;
-            SwaggerApiVersion = ValidationHelper.IsNullOrEmptyOrWhiteSpace(version) ? "v1" : version;
+            var jobConig = _configuration.Environment.Jobs.Single(c => c.Name == typeof(T).Name);
+            _jobsConfig.AddJob<T>(jobConig.Enabled, jobConig.Expression);
+            return this;
         }
     }
 }

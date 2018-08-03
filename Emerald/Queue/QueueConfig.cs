@@ -21,9 +21,10 @@ namespace Emerald.Queue
         internal bool Listen { get; }
         internal QueueDbAccessManager QueueDbAccessManager { get; }
 
-        public void AddEventHandler<T>() where T : EventHandler
+        public QueueConfig AddEventHandler<T>() where T : EventHandler
         {
-            if (!_eventHandlerTypeList.Contains(typeof(T))) _eventHandlerTypeList.Add(typeof(T));
+            _eventHandlerTypeList.Add(typeof(T));
+            return this;
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using Akka.Routing;
-using Emerald.Utils;
+﻿using Emerald.Utils;
 using System;
 using System.Threading.Tasks;
 
@@ -14,14 +13,15 @@ namespace Emerald.Queue
             _queueDbAccessManager = queueDbAccessManager ?? throw new ArgumentNullException(nameof(queueDbAccessManager));
         }
 
-        public async Task Publish(object @event)
+        public Task Publish(object @event)
+        {
+            return Publish(@event, null);
+        }
+        public async Task Publish(object @event, string consistentHashKey)
         {
             if (@event == null) throw new ArgumentNullException(nameof(@event));
-
             var type = @event.GetType().Name;
             var body = @event.ToJson();
-            var consistentHashKey = @event is IConsistentHashable consistentHashable ? consistentHashable.ConsistentHashKey?.ToString() : null;
-
             await _queueDbAccessManager.AddEvent(type, body, consistentHashKey);
         }
 
@@ -36,5 +36,6 @@ namespace Emerald.Queue
     public interface IEventPublisher
     {
         Task Publish(object @event);
+        Task Publish(object @event, string consistentHashKey);
     }
 }

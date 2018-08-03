@@ -4,7 +4,6 @@ namespace Emerald.AspNetCore.System
 {
     internal static class Registry
     {
-        public static EmeraldOptions EmeraldOptions { get; set; }
         public static EmeraldSystem EmeraldSystem { get; set; }
     }
 }

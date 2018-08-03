@@ -14,6 +14,7 @@ namespace Emerald.AspNetCore.Configuration
             Name = configuration.GetSection("environment").GetValue<string>("name");
             Jobs = JobConfigurationSection.Create(configuration);
             Queue = new QueueConfigurationSection(configuration);
+            Swagger = new SwaggerConfigurationSection(configuration);
         }
 
         public ApplicationDbConfigurationSection ApplicationDb { get; }
@@ -24,5 +25,6 @@ namespace Emerald.AspNetCore.Configuration
         public string Name { get; }
         public JobConfigurationSection[] Jobs { get; }
         public QueueConfigurationSection Queue { get; }
+        public SwaggerConfigurationSection Swagger { get; }
     }
 }

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Emerald.AspNetCore.EntityFrameworkCore
 {
-    internal sealed class TransactionScopeFactory<TDbContext> : ITransactionScopeFactory where TDbContext : DbContext
+    public sealed class TransactionScopeFactory<TDbContext> : ITransactionScopeFactory where TDbContext : DbContext
     {
         public ITransactionScope Create(Emerald.System.IServiceScope serviceScope)
         {

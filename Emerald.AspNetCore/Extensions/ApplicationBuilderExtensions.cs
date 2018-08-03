@@ -11,17 +11,6 @@ namespace Emerald.AspNetCore.Extensions
         {
             var applicationLifetime = app.ApplicationServices.GetService<IApplicationLifetime>();
             applicationLifetime.ApplicationStopped.Register(() => Registry.EmeraldSystem.Terminate().Wait());
-
-            var options = Registry.EmeraldOptions;
-
-            app.UseMvc();
-
-            if (options.SwaggerEnabled)
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI(opt => { opt.SwaggerEndpoint(options.SwaggerEndpoint, options.SwaggerApiName); });
-            }
-
             return app;
         }
     }

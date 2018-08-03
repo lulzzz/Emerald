@@ -91,7 +91,14 @@ namespace Emerald.Queue
                     startedAt = i.StartedAt,
                     result = i.Result,
                     handlingTime = i.HandlingTime,
-                    commands = LoggerHelper.CreateLogObject(i.Commands)
+                    commands = i.Commands.Select(c => new
+                    {
+                        name = c.GetType().Name,
+                        startedAt = c.StartedAt,
+                        result = c.Result,
+                        consistentHashKey = c.ConsistentHashKey,
+                        executionTime = c.ExecutionTime
+                    })
                 }),
                 listener = @event.Listener
             };

@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Emerald.Jobs
@@ -58,7 +59,14 @@ namespace Emerald.Jobs
                 jobType = _jobType.Name,
                 startedAt,
                 executionTime = $"{Math.Round((DateTime.UtcNow - startedAt).TotalMilliseconds)}ms",
-                commands = LoggerHelper.CreateLogObject(commandInfoArray)
+                commands = commandInfoArray.Select(c => new
+                {
+                    name = c.GetType().Name,
+                    startedAt = c.StartedAt,
+                    result = c.Result,
+                    consistentHashKey = c.ConsistentHashKey,
+                    executionTime = c.ExecutionTime
+                })
             };
 
             Log.Logger.Write(exception == null ? LogEventLevel.Information : LogEventLevel.Error, exception, log.ToJson(Formatting.Indented));

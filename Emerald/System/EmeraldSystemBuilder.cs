@@ -26,8 +26,8 @@ namespace Emerald.System
 
         private readonly Dictionary<Type, Tuple<Type, IActorRef>> _commandHandlerActorDictionary = new Dictionary<Type, Tuple<Type, IActorRef>>();
         private readonly List<Type> _commandHandlerTypeList = new List<Type>();
-        private readonly List<Tuple<Type, string, bool>> _jobTypeList = new List<Tuple<Type, string, bool>>();
         private QueueConfig _queueConfig;
+        private JobsConfig _jobsConfig;
 
         private Type _commandExecutionStrategyType = typeof(DefaultCommandExecutionStrategy);
         private readonly Type _serviceScopeFactoryType;
@@ -45,9 +45,10 @@ namespace Emerald.System
         {
             _commandHandlerTypeList.Add(typeof(T));
         }
-        internal void AddJob<T>(bool enabled, string expression) where T : IJob
+        internal JobsConfig UseJobs()
         {
-            _jobTypeList.Add(new Tuple<Type, string, bool>(typeof(T), expression, enabled));
+            _jobsConfig = new JobsConfig();
+            return _jobsConfig;
         }
         internal QueueConfig UseQueue(string connectionString, TimeSpan interval, bool listen)
         {
@@ -71,7 +72,8 @@ namespace Emerald.System
             _serviceCollection.AddScoped(typeof(ITransactionScopeFactory), _transactionScopeFactoryType);
 
             _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
-            _jobTypeList.ForEach(j => _serviceCollection.AddScoped(j.Item1));
+
+            _jobsConfig?.Jobs.ForEach(j => _serviceCollection.AddScoped(j.Type));
 
             if (_queueConfig != null)
             {
@@ -82,9 +84,8 @@ namespace Emerald.System
             _serviceCollection.AddScoped<ICommandExecutor>(() => new CommandExecutor(_commandHandlerActorDictionary));
         }
 
-        internal EmeraldSystem Build()
+        internal EmeraldSystem Build(IServiceProvider serviceProvider)
         {
-            var serviceProvider = _serviceCollection.BuildServiceProvider();
             var commandExecutionStategy = (CommandExecutionStrategy)serviceProvider.GetService(typeof(CommandExecutionStrategy));
             var serviceScopeFactory = (IServiceScopeFactory)serviceProvider.GetService(typeof(IServiceScopeFactory));
             var transactionScopeFactory = (ITransactionScopeFactory)serviceProvider.GetService(typeof(ITransactionScopeFactory));
@@ -92,17 +93,20 @@ namespace Emerald.System
             foreach (var commandHandlerType in _commandHandlerTypeList)
             {
                 var commandHandlerActorProps = Props.Create(() => new CommandHandlerActor(commandExecutionStategy, commandHandlerType, serviceScopeFactory, transactionScopeFactory));
-                var commandHandlerActor = _actorSystem.ActorOf(commandHandlerActorProps.WithRouter(new ConsistentHashingPool(1000)));
+                var commandHandlerActor = _actorSystem.ActorOf(commandHandlerActorProps.WithRouter(new ConsistentHashingPool(100)));
                 var commandTypes = GetCommandTypes(commandHandlerType, serviceScopeFactory);
                 commandTypes.ForEach(t => _commandHandlerActorDictionary.Add(t, new Tuple<Type, IActorRef>(commandHandlerType, commandHandlerActor)));
             }
 
-            foreach (var jobType in _jobTypeList)
+            if (_jobsConfig != null)
             {
-                if (!jobType.Item3) continue;
-                var jobActorProps = Props.Create(() => new JobActor(jobType.Item2, jobType.Item1, serviceScopeFactory));
-                var jobActor = _actorSystem.ActorOf(jobActorProps);
-                jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
+                foreach (var job in _jobsConfig.Jobs)
+                {
+                    if (!job.Enabled) continue;
+                    var jobActorProps = Props.Create(() => new JobActor(job.Expression, job.Type, serviceScopeFactory));
+                    var jobActor = _actorSystem.ActorOf(jobActorProps);
+                    jobActor.Tell(JobActor.ScheduleJobCommand, ActorRefs.NoSender);
+                }
             }
 
             if (_queueConfig != null && _queueConfig.Listen && _queueConfig.EventHandlerTypes.Length > 0)
@@ -110,7 +114,7 @@ namespace Emerald.System
                 var eventHandlerDictionary = GetEventTypes(_queueConfig.EventHandlerTypes, serviceScopeFactory);
 
                 var eventHandlerActorProps = Props.Create(() => new EventHandlerActor(eventHandlerDictionary, _queueConfig.QueueDbAccessManager, serviceScopeFactory));
-                var eventHandlerActor = _actorSystem.ActorOf(eventHandlerActorProps.WithRouter(new ConsistentHashingPool(1000)));
+                var eventHandlerActor = _actorSystem.ActorOf(eventHandlerActorProps.WithRouter(new ConsistentHashingPool(100)));
 
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(eventHandlerActor, _queueConfig.Interval, _queueConfig.QueueDbAccessManager));
                 var eventListenerActor = _actorSystem.ActorOf(eventListenerActorProps);
@@ -181,10 +185,10 @@ namespace Emerald.System
             _emeraldSystemBuilder.AddCommandHandler<T>();
             return this;
         }
-        public EmeraldSystemBuilderFirstStepConfig AddJob<T>(bool enabled, string expression) where T : IJob
+        public EmeraldSystemBuilderFirstStepConfig UseJobs(Action<JobsConfig> configure)
         {
-            if (expression == null) throw new ArgumentNullException(nameof(expression));
-            _emeraldSystemBuilder.AddJob<T>(enabled, expression);
+            var jobsConfig = _emeraldSystemBuilder.UseJobs();
+            configure(jobsConfig);
             return this;
         }
         public EmeraldSystemBuilderFirstStepConfig UseQueue(string connectionString, TimeSpan interval, bool listen, Action<QueueConfig> configure)
@@ -219,9 +223,9 @@ namespace Emerald.System
             _emeraldSystemBuilder = emeraldSystemBuilder;
         }
 
-        public EmeraldSystem Build()
+        public EmeraldSystem Build(IServiceProvider serviceProvider)
         {
-            return _emeraldSystemBuilder.Build();
+            return _emeraldSystemBuilder.Build(serviceProvider);
         }
     }
 }

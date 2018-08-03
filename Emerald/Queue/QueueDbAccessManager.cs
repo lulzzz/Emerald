@@ -80,6 +80,9 @@ namespace Emerald.Queue
         }
         public async Task AddEvent(string type, string body, string consistentHashKey)
         {
+            if (type == null) throw new ArgumentNullException(nameof(type));
+            if (body == null) throw new ArgumentNullException(nameof(body));
+
             await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(_connectionString))
@@ -88,7 +91,7 @@ namespace Emerald.Queue
                     command.Parameters.AddWithValue("@Type", type);
                     command.Parameters.AddWithValue("@Body", body);
                     command.Parameters.AddWithValue("@Source", _applicationName);
-                    command.Parameters.AddWithValue("@ConsistentHashKey", consistentHashKey);
+                    command.Parameters.AddWithValue("@ConsistentHashKey", (object)consistentHashKey ?? DBNull.Value);
                     await connection.OpenAsync();
                     await command.ExecuteNonQueryAsync();
                 }
@@ -169,6 +172,8 @@ namespace Emerald.Queue
         }
         public async Task AddLog(long eventId, string result)
         {
+            if (result == null) throw new ArgumentNullException(nameof(result));
+
             await RetryHelper.Execute(async () =>
             {
                 using (var connection = new SqlConnection(_connectionString))

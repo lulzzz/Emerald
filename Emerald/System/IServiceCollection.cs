@@ -8,6 +8,5 @@ namespace Emerald.System
         void AddScoped(Type type);
         void AddScoped(Type serviceType, Type implementationType);
         void AddScoped<T>(Func<T> implementationFactory) where T : class;
-        IServiceProvider BuildServiceProvider();
     }
 }
