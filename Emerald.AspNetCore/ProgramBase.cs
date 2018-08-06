@@ -5,6 +5,7 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
@@ -55,7 +56,7 @@ namespace Emerald.AspNetCore
                 }
                 catch (Exception ex)
                 {
-                    Log.Logger.Error(LoggerHelper.CreateLog("Error on migrating database."), ex);
+                    Log.Logger.Error(new { message = "Error on migrating database." }.ToJson(Formatting.Indented), ex);
                 }
             }
 
@@ -84,7 +85,7 @@ namespace Emerald.AspNetCore
                 }
                 catch (Exception ex)
                 {
-                    Log.Logger.Error(LoggerHelper.CreateLog("Error on running db seed."), ex);
+                    Log.Logger.Error(new { message = "Error on running db seed." }.ToJson(Formatting.Indented), ex);
                 }
             }
         }

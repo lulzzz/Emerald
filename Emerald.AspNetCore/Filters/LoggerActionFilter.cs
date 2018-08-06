@@ -48,7 +48,14 @@ namespace Emerald.AspNetCore.Filters
                 message = isError ? "Request handled with error." : "Request handled.",
                 request = CreateRequestLogObject(context),
                 response = CreateResponseLogObject(context),
-                commands = LoggerHelper.CreateLogObject(_commandExecutor.GetCommands())
+                commands = _commandExecutor.GetCommands().Select(c => new
+                {
+                    name = c.GetType().Name,
+                    startedAt = c.StartedAt,
+                    result = c.Result,
+                    consistentHashKey = c.ConsistentHashKey,
+                    executionTime = c.ExecutionTime
+                })
             };
 
             _logger.Log(isError ? LogLevel.Error : LogLevel.Information, log.ToJson(Formatting.Indented));

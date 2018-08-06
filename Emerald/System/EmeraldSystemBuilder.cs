@@ -50,9 +50,9 @@ namespace Emerald.System
             _jobsConfig = new JobsConfig();
             return _jobsConfig;
         }
-        internal QueueConfig UseQueue(string connectionString, TimeSpan interval, bool listen)
+        internal QueueConfig UseQueue(string connectionString, TimeSpan delay, TimeSpan interval, bool listen)
         {
-            _queueConfig = new QueueConfig(_applicationName, connectionString, interval, listen);
+            _queueConfig = new QueueConfig(_applicationName, connectionString, delay, interval, listen);
             return _queueConfig;
         }
 
@@ -119,7 +119,7 @@ namespace Emerald.System
                 var eventListenerActorProps = Props.Create(() => new EventListenerActor(eventHandlerActor, _queueConfig.Interval, _queueConfig.QueueDbAccessManager));
                 var eventListenerActor = _actorSystem.ActorOf(eventListenerActorProps);
 
-                eventListenerActor.Tell(EventListenerActor.ScheduleNextListenCommand);
+                _actorSystem.Scheduler.ScheduleTellOnce(_queueConfig.Delay, eventListenerActor, EventListenerActor.ScheduleNextListenCommand, ActorRefs.NoSender);
             }
 
             return new EmeraldSystem(_actorSystem);
@@ -191,10 +191,10 @@ namespace Emerald.System
             configure(jobsConfig);
             return this;
         }
-        public EmeraldSystemBuilderFirstStepConfig UseQueue(string connectionString, TimeSpan interval, bool listen, Action<QueueConfig> configure)
+        public EmeraldSystemBuilderFirstStepConfig UseQueue(string connectionString, TimeSpan delay, TimeSpan interval, bool listen, Action<QueueConfig> configure)
         {
             if (connectionString == null) throw new ArgumentNullException(nameof(connectionString));
-            var queueConfig = _emeraldSystemBuilder.UseQueue(connectionString, interval, listen);
+            var queueConfig = _emeraldSystemBuilder.UseQueue(connectionString, delay, interval, listen);
             configure(queueConfig);
             return this;
         }

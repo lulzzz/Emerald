@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Swashbuckle.AspNetCore.Swagger;
+using System;
 
 namespace Emerald.AspNetCore
 {
@@ -25,8 +26,8 @@ namespace Emerald.AspNetCore
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContextPool<TDbContext>(opt => opt.UseSqlServer(Configuration.Environment.ApplicationDb.ConnectionString));
             services.AddSingleton(Configuration);
+            ConfigureDbContext(services);
 
             ConfigureDependencies(services);
             ConfigureApplicationServices(services);
@@ -66,6 +67,13 @@ namespace Emerald.AspNetCore
         protected abstract void ConfigureDependencies(IServiceCollection services);
         protected virtual void ConfigureApplicationServices(IServiceCollection services)
         {
+        }
+
+        protected virtual void ConfigureDbContext(IServiceCollection services)
+        {
+            services.AddDbContextPool<TDbContext>(
+                opt => opt.UseSqlServer(Configuration.Environment.ApplicationDb.ConnectionString,
+                    opt2 => opt2.EnableRetryOnFailure(10, TimeSpan.FromSeconds(30), null)));
         }
         protected abstract void ConfigureEmerald(EmeraldOptions options);
         protected TDbContext CreateDbContext()

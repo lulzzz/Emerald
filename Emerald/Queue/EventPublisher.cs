@@ -15,9 +15,9 @@ namespace Emerald.Queue
 
         public Task Publish(object @event)
         {
-            return Publish(@event, null);
+            return Publish(null, @event);
         }
-        public async Task Publish(object @event, string consistentHashKey)
+        public async Task Publish(string consistentHashKey, object @event)
         {
             if (@event == null) throw new ArgumentNullException(nameof(@event));
             var type = @event.GetType().Name;
@@ -36,6 +36,6 @@ namespace Emerald.Queue
     public interface IEventPublisher
     {
         Task Publish(object @event);
-        Task Publish(object @event, string consistentHashKey);
+        Task Publish(string consistentHashKey, object @event);
     }
 }

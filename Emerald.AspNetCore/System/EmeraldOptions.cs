@@ -30,9 +30,10 @@ namespace Emerald.AspNetCore.System
         public void UseQueue(Action<QueueConfig> configure)
         {
             var connectionString = _configuration.Environment.Queue.ConnectionString;
+            var delay = _configuration.Environment.Queue.Delay;
             var interval = _configuration.Environment.Queue.Interval;
             var listen = _configuration.Environment.Queue.Listen;
-            _emeraldSystemBuilderConfig.UseQueue(connectionString, interval, listen, configure);
+            _emeraldSystemBuilderConfig.UseQueue(connectionString, delay, interval, listen, configure);
         }
 
         public void SetTransactionScopeFactory<T>() where T : class, ITransactionScopeFactory
