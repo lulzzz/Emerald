@@ -19,48 +19,48 @@ namespace Emerald.AspNetCore
     {
         protected StartupBase(IConfiguration configuration)
         {
-            Configuration = new ApplicationConfiguration(configuration);
+            ApplicationConfiguration = new ApplicationConfiguration(configuration);
         }
 
-        protected IApplicationConfiguration Configuration { get; }
+        protected IApplicationConfiguration ApplicationConfiguration { get; }
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSingleton(Configuration);
+            services.AddSingleton(ApplicationConfiguration);
             ConfigureDbContext(services);
 
             ConfigureDependencies(services);
             ConfigureApplicationServices(services);
 
-            services.AddEmerald<ServiceScopeFactory>(Configuration, ConfigureEmerald);
+            services.AddEmerald<ServiceScopeFactory>(ApplicationConfiguration, ConfigureEmerald);
             services.AddMvc(opt => opt.Filters.Add<LoggerActionFilter>());
 
-            if (Configuration.Environment.ApplicationInsights.Enabled)
+            if (ApplicationConfiguration.Environment.ApplicationInsights.Enabled)
             {
-                services.AddSingleton<ITelemetryInitializer>(new TelemetryInitializer(Configuration.Environment.ApplicationName));
-                services.AddApplicationInsightsTelemetry(Configuration.Environment.ApplicationInsights.Key);
+                services.AddSingleton<ITelemetryInitializer>(new TelemetryInitializer(ApplicationConfiguration.Environment.ApplicationName));
+                services.AddApplicationInsightsTelemetry(ApplicationConfiguration.Environment.ApplicationInsights.Key);
             }
 
-            if (Configuration.Environment.Swagger.Enabled)
+            if (ApplicationConfiguration.Environment.Swagger.Enabled)
             {
-                var title = Configuration.Environment.Swagger.ApiName;
-                var version = Configuration.Environment.Swagger.ApiVersion;
+                var title = ApplicationConfiguration.Environment.Swagger.ApiName;
+                var version = ApplicationConfiguration.Environment.Swagger.ApiVersion;
                 services.AddSwaggerGen(c => { c.SwaggerDoc(version, new Info { Title = title, Version = version }); });
             }
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
-            env.ApplicationName = Configuration.Environment.ApplicationName;
-            env.EnvironmentName = Configuration.Environment.Name;
+            env.ApplicationName = ApplicationConfiguration.Environment.ApplicationName;
+            env.EnvironmentName = ApplicationConfiguration.Environment.Name;
 
             app.UseEmerald();
             app.UseMvc();
 
-            if (Configuration.Environment.Swagger.Enabled)
+            if (ApplicationConfiguration.Environment.Swagger.Enabled)
             {
                 app.UseSwagger();
-                app.UseSwaggerUI(opt => { opt.SwaggerEndpoint(Configuration.Environment.Swagger.Endpoint, Configuration.Environment.Swagger.ApiName); });
+                app.UseSwaggerUI(opt => { opt.SwaggerEndpoint(ApplicationConfiguration.Environment.Swagger.Endpoint, ApplicationConfiguration.Environment.Swagger.ApiName); });
             }
         }
 
@@ -71,14 +71,12 @@ namespace Emerald.AspNetCore
 
         protected virtual void ConfigureDbContext(IServiceCollection services)
         {
-            services.AddDbContextPool<TDbContext>(
-                opt => opt.UseSqlServer(Configuration.Environment.ApplicationDb.ConnectionString,
-                    opt2 => opt2.EnableRetryOnFailure(10, TimeSpan.FromSeconds(30), null)));
+            services.AddDbContextPool<TDbContext>(opt => opt.UseSqlServer(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString, opt2 => opt2.EnableRetryOnFailure(10, TimeSpan.FromSeconds(30), null)));
         }
         protected abstract void ConfigureEmerald(EmeraldOptions options);
         protected TDbContext CreateDbContext()
         {
-            return DbContextFactory.Create<TDbContext>(Configuration.Environment.ApplicationDb.ConnectionString);
+            return DbContextFactory.Create<TDbContext>(ApplicationConfiguration.Environment.ApplicationDb.ConnectionString);
         }
     }
 }

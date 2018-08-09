@@ -5,6 +5,7 @@ namespace Emerald.Core
 {
     public abstract class Command : IConsistentHashable, ICommandInfo
     {
+        private string _correlationId;
         private Exception _exception;
         private string _executionTime;
         private object _output;
@@ -16,12 +17,17 @@ namespace Emerald.Core
 
         public virtual object ConsistentHashKey { get; } = null;
 
+        string ICommandInfo.CorrelationId => _correlationId;
         Exception ICommandInfo.Exception => _exception;
         string ICommandInfo.ExecutionTime => _executionTime;
         object ICommandInfo.Output => _output;
         DateTime ICommandInfo.StartedAt => _startedAt;
         string ICommandInfo.Result => _result;
 
+        internal void SetCorrelationId(string correlationId)
+        {
+            _correlationId = correlationId;
+        }
         internal void Started()
         {
             _startedAt = DateTime.UtcNow;
@@ -39,6 +45,7 @@ namespace Emerald.Core
 
     public interface ICommandInfo
     {
+        string CorrelationId { get; }
         object ConsistentHashKey { get; }
         Exception Exception { get; }
         string ExecutionTime { get; }

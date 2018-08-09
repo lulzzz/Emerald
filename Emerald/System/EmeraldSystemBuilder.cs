@@ -3,10 +3,10 @@ using Akka.Routing;
 using Akka.Util.Internal;
 using Emerald.Core;
 using Emerald.Jobs;
+using Emerald.Logging;
 using Emerald.Queue;
 using System;
 using System.Collections.Generic;
-using EventHandler = Emerald.Queue.EventHandler;
 
 namespace Emerald.System
 {
@@ -70,6 +70,7 @@ namespace Emerald.System
             _serviceCollection.AddScoped(typeof(CommandExecutionStrategy), _commandExecutionStrategyType);
             _serviceCollection.AddScoped(typeof(IServiceScopeFactory), _serviceScopeFactoryType);
             _serviceCollection.AddScoped(typeof(ITransactionScopeFactory), _transactionScopeFactoryType);
+            _serviceCollection.AddScoped(typeof(ILoggerContext), typeof(LoggerContext));
 
             _commandHandlerTypeList.ForEach(_serviceCollection.AddScoped);
 
@@ -142,7 +143,7 @@ namespace Emerald.System
             {
                 foreach (var eventHandlerType in eventHandlerTypes)
                 {
-                    var eventHandler = (EventHandler)scope.ServiceProvider.GetService(eventHandlerType);
+                    var eventHandler = (Queue.EventHandler)scope.ServiceProvider.GetService(eventHandlerType);
 
                     eventHandler.Initialize();
 

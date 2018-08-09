@@ -1,6 +1,4 @@
 ﻿using Akka.Actor;
-using Emerald.Utils;
-using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
 using System;
@@ -61,7 +59,7 @@ namespace Emerald.Queue
                 exception = ex;
             }
 
-            var log = new
+            var logContent = new
             {
                 message = exception == null ? "Listener cycle completed." : "Listener cycle completed with error.",
                 cycleId,
@@ -70,7 +68,7 @@ namespace Emerald.Queue
                 readingTime = $"{Math.Round((DateTime.UtcNow - startedAt).TotalMilliseconds)}ms"
             };
 
-            Log.Logger.Write(exception == null ? LogEventLevel.Debug : LogEventLevel.Error, exception, log.ToJson(Formatting.Indented));
+            Log.Logger.Write(exception == null ? LogEventLevel.Debug : LogEventLevel.Error, exception, "{@content}", new object[] { logContent });
 
             return ScheduleNextListenCommand;
         }

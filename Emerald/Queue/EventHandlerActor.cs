@@ -1,7 +1,7 @@
 ﻿using Akka.Actor;
 using Emerald.Core;
+using Emerald.Logging;
 using Emerald.System;
-using Emerald.Utils;
 using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
@@ -32,6 +32,7 @@ namespace Emerald.Queue
             var startedAt = DateTime.UtcNow;
             var exceptionList = new List<Exception>();
             var eventHandlerInfoList = new List<EventHandlerInfo>();
+            var correlationId = @event.Id.ToString();
 
             try
             {
@@ -42,7 +43,7 @@ namespace Emerald.Queue
                 }
 
                 var eventType = _eventHandlerDictionary[@event.Type].Item1;
-                var eventObj = @event.Body.ParseJson(eventType);
+                var eventObj = JsonConvert.DeserializeObject(@event.Body, eventType);
 
                 foreach (var eventHandlerType in _eventHandlerDictionary[@event.Type].Item2)
                 {
@@ -52,10 +53,16 @@ namespace Emerald.Queue
                         var commandExecutor = (ICommandExecutor)scope.ServiceProvider.GetService(typeof(ICommandExecutor));
                         var result = EventHandlerInfo.SuccessResult;
 
+                        commandExecutor.SetCorrelationId(correlationId);
+
                         try
                         {
                             var eventHandler = (EventHandler)scope.ServiceProvider.GetService(eventHandlerType);
+                            var loggerContext = (LoggerContext)scope.ServiceProvider.GetService(typeof(ILoggerContext));
+
                             eventHandler.Initialize();
+                            loggerContext.SetCorrelationId(correlationId);
+
                             await eventHandler.Handle(eventObj);
                         }
                         catch (Exception ex)
@@ -77,9 +84,10 @@ namespace Emerald.Queue
 
             var aggregateException = exceptionList.Count == 0 ? null : new AggregateException(exceptionList);
 
-            var log = new
+            var logContent = new
             {
                 message = aggregateException == null ? "Event handled successfully." : "Event handled with errors",
+                correlationId,
                 eventId = @event.Id,
                 eventType = @event.Type,
                 startedAt,
@@ -100,10 +108,15 @@ namespace Emerald.Queue
                         executionTime = c.ExecutionTime
                     })
                 }),
-                listener = @event.Listener
+                listener = new
+                {
+                    cycleId = @event.Listener.CycleId,
+                    startedAt = @event.Listener.StartedAt,
+                    events = @event.Listener.Events
+                }
             };
 
-            Log.Logger.Write(aggregateException == null ? LogEventLevel.Information : LogEventLevel.Error, aggregateException, log.ToJson(Formatting.Indented));
+            Log.Logger.Write(aggregateException == null ? LogEventLevel.Information : LogEventLevel.Error, aggregateException, "{@content}", new object[] { logContent });
         }
     }
 }

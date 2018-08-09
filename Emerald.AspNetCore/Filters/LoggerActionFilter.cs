@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Serilog;
+using Serilog.Events;
 using System;
 using System.IO;
 using System.Linq;
@@ -18,14 +18,13 @@ namespace Emerald.AspNetCore.Filters
     {
         private readonly ICommandExecutor _commandExecutor;
         private readonly IApplicationConfiguration _configuration;
-        private readonly ILogger<LoggerActionFilter> _logger;
+        private readonly string _correlationId = Guid.NewGuid().ToString();
         private DateTime _startedAt;
 
-        public LoggerActionFilter(ICommandExecutor commandExecutor, IApplicationConfiguration configuration, ILogger<LoggerActionFilter> logger)
+        public LoggerActionFilter(ICommandExecutor commandExecutor, IApplicationConfiguration configuration)
         {
             _commandExecutor = commandExecutor;
             _configuration = configuration;
-            _logger = logger;
         }
 
         public void OnActionExecuting(ActionExecutingContext context)
@@ -38,16 +37,21 @@ namespace Emerald.AspNetCore.Filters
             {
                 context.Result = new BadRequestObjectResult(string.Join(Environment.NewLine, context.ModelState.Values.SelectMany(i => i.Errors).Select(i => i.ErrorMessage)));
             }
+
+            _commandExecutor.SetCorrelationId(_correlationId);
         }
         public void OnActionExecuted(ActionExecutedContext context)
         {
             var isError = context.Exception != null && !context.ExceptionHandled;
+            var level = isError ? LogEventLevel.Error : LogEventLevel.Information;
 
-            var log = new
+            var logContent = new
             {
-                message = isError ? "Request handled with error." : "Request handled.",
+                message = isError ? "Request handled with errors" : "Request handled successfully.",
+                correlationId = _correlationId,
                 request = CreateRequestLogObject(context),
                 response = CreateResponseLogObject(context),
+                handlingTime = $"{(DateTime.UtcNow - _startedAt).TotalMilliseconds}ms",
                 commands = _commandExecutor.GetCommands().Select(c => new
                 {
                     name = c.GetType().Name,
@@ -58,7 +62,7 @@ namespace Emerald.AspNetCore.Filters
                 })
             };
 
-            _logger.Log(isError ? LogLevel.Error : LogLevel.Information, log.ToJson(Formatting.Indented));
+            Log.Logger.Write(level, context.Exception, "{@content}", logContent);
         }
 
         private object CreateRequestLogObject(ActionExecutedContext context)
@@ -66,12 +70,12 @@ namespace Emerald.AspNetCore.Filters
             var method = context.HttpContext.Request.Method;
             var uri = $"{context.HttpContext.Request.Path}{context.HttpContext.Request.QueryString}";
 
-            string content = null;
+            object content = null;
 
             if (context.HttpContext.Request.Method != HttpMethod.Get.ToString() && (context.HttpContext.Request.ContentType?.Contains("application/json") ?? false))
             {
                 context.HttpContext.Request.Body.Position = 0;
-                content = $"{new StreamReader(context.HttpContext.Request.Body).ReadToEnd()}";
+                content = JsonHelper.TryParse(new StreamReader(context.HttpContext.Request.Body).ReadToEnd());
             }
 
             return new { method, uri, content };
@@ -92,9 +96,8 @@ namespace Emerald.AspNetCore.Filters
                 statusCode = statusCodeResult.StatusCode;
             }
 
-            var responseTime = $"{(DateTime.UtcNow - _startedAt).TotalMilliseconds}ms";
 
-            return content == null ? (object)new { statusCode, responseTime } : new { statusCode, content, responseTime };
+            return content == null ? (object)new { statusCode } : new { statusCode, content };
         }
     }
 }

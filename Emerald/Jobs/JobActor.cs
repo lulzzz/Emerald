@@ -1,8 +1,7 @@
 ﻿using Akka.Actor;
 using Emerald.Core;
+using Emerald.Logging;
 using Emerald.System;
-using Emerald.Utils;
-using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
 using System;
@@ -32,6 +31,7 @@ namespace Emerald.Jobs
 
         private async Task<string> ExecuteJob()
         {
+            var correlationId = Guid.NewGuid().ToString();
             var startedAt = DateTime.UtcNow;
             var exception = default(Exception);
             ICommandInfo[] commandInfoArray;
@@ -39,6 +39,10 @@ namespace Emerald.Jobs
             using (var scope = _serviceScopeFactory.Create())
             {
                 var commandExecutor = (ICommandExecutor)scope.ServiceProvider.GetService(typeof(ICommandExecutor));
+                var loggerContext = (LoggerContext)scope.ServiceProvider.GetService(typeof(ILoggerContext));
+
+                commandExecutor.SetCorrelationId(correlationId);
+                loggerContext.SetCorrelationId(correlationId);
 
                 try
                 {
@@ -53,9 +57,10 @@ namespace Emerald.Jobs
                 commandInfoArray = commandExecutor.GetCommands();
             }
 
-            var log = new
+            var logContent = new
             {
                 message = exception == null ? "Job executed successfully." : "Job executed with errors.",
+                correlationId,
                 jobType = _jobType.Name,
                 startedAt,
                 executionTime = $"{Math.Round((DateTime.UtcNow - startedAt).TotalMilliseconds)}ms",
@@ -69,7 +74,7 @@ namespace Emerald.Jobs
                 })
             };
 
-            Log.Logger.Write(exception == null ? LogEventLevel.Information : LogEventLevel.Error, exception, log.ToJson(Formatting.Indented));
+            Log.Logger.Write(exception == null ? LogEventLevel.Information : LogEventLevel.Error, exception, "{@content}", new object[] { logContent });
 
             return ScheduleJobCommand;
         }

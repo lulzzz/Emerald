@@ -17,12 +17,12 @@ namespace Emerald.Queue
         {
             return Publish(null, @event);
         }
-        public async Task Publish(string consistentHashKey, object @event)
+        public async Task Publish(object consistentHashKey, object @event)
         {
             if (@event == null) throw new ArgumentNullException(nameof(@event));
             var type = @event.GetType().Name;
             var body = @event.ToJson();
-            await _queueDbAccessManager.AddEvent(type, body, consistentHashKey);
+            await _queueDbAccessManager.AddEvent(type, body, consistentHashKey?.ToString());
         }
 
         public static async Task<IEventPublisher> Create(string applicationName, string connectionString)
@@ -36,6 +36,6 @@ namespace Emerald.Queue
     public interface IEventPublisher
     {
         Task Publish(object @event);
-        Task Publish(string consistentHashKey, object @event);
+        Task Publish(object consistentHashKey, object @event);
     }
 }

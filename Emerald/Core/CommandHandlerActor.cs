@@ -1,5 +1,6 @@
 ﻿using Akka.Actor;
 using Emerald.Common;
+using Emerald.Logging;
 using Emerald.System;
 using System;
 using System.Threading.Tasks;
@@ -39,8 +40,10 @@ namespace Emerald.Core
                     using (var transaction = _transactionScopeFactory.Create(scope))
                     {
                         var commandHandler = (CommandHandler)scope.ServiceProvider.GetService(_commandHandlerType);
+                        var loggerContext = (LoggerContext)scope.ServiceProvider.GetService(typeof(ILoggerContext));
 
                         commandHandler.Initialize();
+                        loggerContext.SetCorrelationId(command.AsCommandInfo().CorrelationId);
 
                         try
                         {

@@ -1,11 +1,10 @@
-﻿using Emerald.AspNetCore.Configuration;
+﻿using Destructurama;
+using Emerald.AspNetCore.Configuration;
 using Emerald.AspNetCore.EntityFrameworkCore;
-using Emerald.Utils;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
@@ -35,7 +34,7 @@ namespace Emerald.AspNetCore
         {
             var environmentName = configuration.Environment.Name;
             var logging = configuration.Environment.Logging;
-            var loggerConfiguration = new LoggerConfiguration().MinimumLevel.Is(logging.Level).Enrich.FromLogContext();
+            var loggerConfiguration = new LoggerConfiguration().Destructure.JsonNetTypes().MinimumLevel.Is(logging.Level);
 
             if (logging.Console.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Console();
             if (logging.ElasticSearch.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(logging.ElasticSearch.NodeUri)) { IndexFormat = logging.ElasticSearch.IndexFormat });
@@ -56,7 +55,7 @@ namespace Emerald.AspNetCore
                 }
                 catch (Exception ex)
                 {
-                    Log.Logger.Error(new { message = "Error on migrating database." }.ToJson(Formatting.Indented), ex);
+                    Log.Logger.Error(ex, "{@content}", new { message = "Error on migrating database." });
                 }
             }
 
@@ -85,7 +84,7 @@ namespace Emerald.AspNetCore
                 }
                 catch (Exception ex)
                 {
-                    Log.Logger.Error(new { message = "Error on running db seed." }.ToJson(Formatting.Indented), ex);
+                    Log.Logger.Error(ex, "{@content}", new { message = "Error on running db seed." });
                 }
             }
         }
