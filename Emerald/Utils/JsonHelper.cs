@@ -7,8 +7,6 @@ namespace Emerald.Utils
     {
         private static readonly JsonSerializerSettings JsonSerializerSettings = new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() };
 
-        public static string ToJson(this object obj, Formatting formatting = Formatting.None) => JsonConvert.SerializeObject(obj, formatting, JsonSerializerSettings);
-
         public static object TryParse(string str)
         {
             try
@@ -20,5 +18,7 @@ namespace Emerald.Utils
                 return str;
             }
         }
+
+        public static string ToJson(this object obj, Formatting formatting = Formatting.None) => JsonConvert.SerializeObject(obj, formatting, JsonSerializerSettings);
     }
 }

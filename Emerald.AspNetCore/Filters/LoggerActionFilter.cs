@@ -2,9 +2,11 @@
 using Emerald.Core;
 using Emerald.Utils;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
 using System;
@@ -49,9 +51,9 @@ namespace Emerald.AspNetCore.Filters
             {
                 message = isError ? "Request handled with errors" : "Request handled successfully.",
                 correlationId = _correlationId,
-                request = CreateRequestLogObject(context),
-                response = CreateResponseLogObject(context),
                 handlingTime = $"{(DateTime.UtcNow - _startedAt).TotalMilliseconds}ms",
+                request = CreateLogContent(context.HttpContext.Request),
+                response = CreateLogContent(context.Result),
                 commands = _commandExecutor.GetCommands().Select(c => new
                 {
                     name = c.GetType().Name,
@@ -60,42 +62,49 @@ namespace Emerald.AspNetCore.Filters
                     consistentHashKey = c.ConsistentHashKey,
                     executionTime = c.ExecutionTime
                 })
-            };
+            }.ToJson(Formatting.Indented);
 
-            Log.Logger.Write(level, context.Exception, "{@content}", logContent);
+            Log.Logger.Write(level, context.Exception, "content: {content}, correlationId: {correlationId}", logContent, _correlationId);
         }
 
-        private object CreateRequestLogObject(ActionExecutedContext context)
+        private object CreateLogContent(HttpRequest request)
         {
-            var method = context.HttpContext.Request.Method;
-            var uri = $"{context.HttpContext.Request.Path}{context.HttpContext.Request.QueryString}";
+            var method = request.Method;
+            var uri = $"{request.Path}{request.QueryString}";
 
             object content = null;
 
-            if (context.HttpContext.Request.Method != HttpMethod.Get.ToString() && (context.HttpContext.Request.ContentType?.Contains("application/json") ?? false))
+            if (request.Method != HttpMethod.Get.ToString() && (request.ContentType?.Contains("application/json") ?? false))
             {
-                context.HttpContext.Request.Body.Position = 0;
-                content = JsonHelper.TryParse(new StreamReader(context.HttpContext.Request.Body).ReadToEnd());
+                request.Body.Position = 0;
+
+                try
+                {
+                    content = JsonConvert.DeserializeObject(new StreamReader(request.Body).ReadToEnd());
+                }
+                catch
+                {
+                    content = null;
+                }
             }
 
             return new { method, uri, content };
         }
-        private object CreateResponseLogObject(ActionExecutedContext context)
+        private object CreateLogContent(IActionResult actionResult)
         {
             int? statusCode = null;
             object content = null;
 
-            if (context.Result is ObjectResult objectResult)
+            if (actionResult is ObjectResult objectResult)
             {
                 statusCode = objectResult.StatusCode;
                 if (objectResult.StatusCode < 200 || objectResult.StatusCode >= 300 && objectResult.Value != null) content = objectResult.Value;
                 if (string.Equals(_configuration.Environment.Name, EnvironmentName.Development, StringComparison.InvariantCultureIgnoreCase)) content = objectResult.Value;
             }
-            else if (context.Result is StatusCodeResult statusCodeResult)
+            else if (actionResult is StatusCodeResult statusCodeResult)
             {
                 statusCode = statusCodeResult.StatusCode;
             }
-
 
             return content == null ? (object)new { statusCode } : new { statusCode, content };
         }

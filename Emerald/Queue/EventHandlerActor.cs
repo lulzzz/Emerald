@@ -2,6 +2,7 @@
 using Emerald.Core;
 using Emerald.Logging;
 using Emerald.System;
+using Emerald.Utils;
 using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
@@ -83,7 +84,7 @@ namespace Emerald.Queue
             }
 
             var aggregateException = exceptionList.Count == 0 ? null : new AggregateException(exceptionList);
-
+            var level = aggregateException == null ? LogEventLevel.Information : LogEventLevel.Error;
             var logContent = new
             {
                 message = aggregateException == null ? "Event handled successfully." : "Event handled with errors",
@@ -114,9 +115,9 @@ namespace Emerald.Queue
                     startedAt = @event.Listener.StartedAt,
                     events = @event.Listener.Events
                 }
-            };
+            }.ToJson(Formatting.Indented);
 
-            Log.Logger.Write(aggregateException == null ? LogEventLevel.Information : LogEventLevel.Error, aggregateException, "{@content}", new object[] { logContent });
+            Log.Logger.Write(level, aggregateException, "content: {content}, correlationId: {correlationId}", logContent, correlationId);
         }
     }
 }

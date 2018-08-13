@@ -2,6 +2,8 @@
 using Emerald.Core;
 using Emerald.Logging;
 using Emerald.System;
+using Emerald.Utils;
+using Newtonsoft.Json;
 using Serilog;
 using Serilog.Events;
 using System;
@@ -57,6 +59,7 @@ namespace Emerald.Jobs
                 commandInfoArray = commandExecutor.GetCommands();
             }
 
+            var level = exception == null ? LogEventLevel.Information : LogEventLevel.Error;
             var logContent = new
             {
                 message = exception == null ? "Job executed successfully." : "Job executed with errors.",
@@ -72,9 +75,9 @@ namespace Emerald.Jobs
                     consistentHashKey = c.ConsistentHashKey,
                     executionTime = c.ExecutionTime
                 })
-            };
+            }.ToJson(Formatting.Indented);
 
-            Log.Logger.Write(exception == null ? LogEventLevel.Information : LogEventLevel.Error, exception, "{@content}", new object[] { logContent });
+            Log.Logger.Write(level, exception, "content: {content}, correlationId: {correlationId}", logContent, correlationId);
 
             return ScheduleJobCommand;
         }

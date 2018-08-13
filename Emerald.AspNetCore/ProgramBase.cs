@@ -1,5 +1,4 @@
-﻿using Destructurama;
-using Emerald.AspNetCore.Configuration;
+﻿using Emerald.AspNetCore.Configuration;
 using Emerald.AspNetCore.EntityFrameworkCore;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
@@ -34,7 +33,7 @@ namespace Emerald.AspNetCore
         {
             var environmentName = configuration.Environment.Name;
             var logging = configuration.Environment.Logging;
-            var loggerConfiguration = new LoggerConfiguration().Destructure.JsonNetTypes().MinimumLevel.Is(logging.Level);
+            var loggerConfiguration = new LoggerConfiguration().MinimumLevel.Is(logging.Level);
 
             if (logging.Console.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Console();
             if (logging.ElasticSearch.Enabled) loggerConfiguration = loggerConfiguration.WriteTo.Elasticsearch(new ElasticsearchSinkOptions(new Uri(logging.ElasticSearch.NodeUri)) { IndexFormat = logging.ElasticSearch.IndexFormat });
