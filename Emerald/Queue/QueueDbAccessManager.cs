@@ -26,7 +26,7 @@ namespace Emerald.Queue
 
         private const string RegisterSubscriberQuery = "IF (SELECT COUNT(*) FROM [dbo].[Subscribers] WHERE [Name] = @Name) = 0 INSERT INTO [dbo].[Subscribers] ([Name], [LastReadAt], [LastReadEventId], [StartFromEventId]) VALUES (@Name, GETUTCDATE(), (SELECT COALESCE(MAX([Id]), 0) FROM [dbo].[Events]), (SELECT COALESCE(MAX([Id]), 0) + 1 FROM [dbo].[Events]))";
         private const string LastEventIdQuery = "SELECT [LastReadEventId] FROM [dbo].[Subscribers] WHERE [Name] = @Name";
-        private const string EventListQuery = "SELECT [Id], [Type], [Body], [ConsistentHashKey] FROM [dbo].[Events] WHERE [Id] > @Id ORDER BY [Id]";
+        private const string EventListQuery = "SELECT [E].[Id], [E].[Type], [E].[Body], [E].[ConsistentHashKey] FROM [dbo].[Events] AS [E] LEFT JOIN [dbo].[Logs] AS [L] ON [L].[EventId] = [E].[Id] AND [L].[SubscriberName] = @SubscriberName WHERE [E].[Id] > @Id AND [L].[EventId] IS NULL ORDER BY [Id]";
         private const string UpdateLastEventIdQuery = "UPDATE [dbo].[Subscribers] SET [LastReadEventId] = @LastReadEventId WHERE [Name] = @Name";
         private const string UpdateLastReadAtQuery = "UPDATE [dbo].[Subscribers] SET [LastReadAt] = @LastReadAt WHERE [Name] = @Name";
         private const string InsertEventQuery = "INSERT INTO [dbo].[Events] ([Type], [Body], [Source], [PublishedAt], [ConsistentHashKey]) VALUES (@Type, @Body, @Source, GETUTCDATE(), @ConsistentHashKey)";
@@ -53,7 +53,7 @@ namespace Emerald.Queue
                     await connection.OpenAsync();
                     await createDbCommand.ExecuteNonQueryAsync();
                 }
-            });
+            }, IsConnectionResiliencyException);
 
             await RetryHelper.Execute(async () =>
             {
@@ -63,7 +63,7 @@ namespace Emerald.Queue
                     await connection.OpenAsync();
                     await command.ExecuteNonQueryAsync();
                 }
-            });
+            }, IsConnectionResiliencyException);
         }
         public async Task RegisterSubscriberIfNeeded()
         {
@@ -76,7 +76,7 @@ namespace Emerald.Queue
                     await connection.OpenAsync();
                     await command.ExecuteNonQueryAsync();
                 }
-            });
+            }, IsConnectionResiliencyException);
         }
         public async Task AddEvent(string type, string body, string consistentHashKey)
         {
@@ -95,7 +95,7 @@ namespace Emerald.Queue
                     await connection.OpenAsync();
                     await command.ExecuteNonQueryAsync();
                 }
-            });
+            }, IsConnectionResiliencyException);
         }
         public async Task<Event[]> GetEvents()
         {
@@ -115,6 +115,7 @@ namespace Emerald.Queue
                             {
                                 lastEventIdCommand.Parameters.AddWithValue("@Name", _applicationName);
                                 var lastEventIdCommandResult = await lastEventIdCommand.ExecuteScalarAsync();
+                                if (lastEventIdCommandResult == null || lastEventIdCommandResult == DBNull.Value) return new Event[0];
                                 lastEventId = Convert.ToInt64(lastEventIdCommandResult);
                             }
 
@@ -123,6 +124,7 @@ namespace Emerald.Queue
                             using (var eventListCommand = new SqlCommand(EventListQuery, connection, transaction))
                             {
                                 eventListCommand.Parameters.AddWithValue("@Id", lastEventId);
+                                eventListCommand.Parameters.AddWithValue("@SubscriberName", _applicationName);
 
                                 using (var eventListReader = await eventListCommand.ExecuteReaderAsync())
                                 {
@@ -168,7 +170,7 @@ namespace Emerald.Queue
                         }
                     }
                 }
-            });
+            }, IsConnectionResiliencyException);
         }
         public async Task AddLog(long eventId, string result)
         {
@@ -185,7 +187,42 @@ namespace Emerald.Queue
                     await connection.OpenAsync();
                     await command.ExecuteNonQueryAsync();
                 }
-            });
+            }, IsConnectionResiliencyException);
+        }
+
+        private bool IsConnectionResiliencyException(Exception exception)
+        {
+            if (exception is SqlException sqlException)
+            {
+                foreach (SqlError error in sqlException.Errors)
+                {
+                    switch (error.Number)
+                    {
+                        case 20:
+                        case 64:
+                        case 233:
+                        case 10053:
+                        case 10054:
+                        case 10060:
+                        case 10928:
+                        case 10929:
+                        case 40197:
+                        case 40501:
+                        case 40613:
+                        case 41301:
+                        case 41302:
+                        case 41305:
+                        case 41325:
+                            return true;
+                        default:
+                            continue;
+                    }
+                }
+
+                return false;
+            }
+
+            return exception is TimeoutException;
         }
     }
 }

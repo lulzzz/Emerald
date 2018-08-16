@@ -5,18 +5,18 @@ namespace Emerald.Utils
 {
     public static class RetryHelper
     {
-        public static Task Execute(Func<Task> operation)
+        public static Task Execute(Func<Task> operation, Func<Exception, bool> shouldRetryOn)
         {
-            return Execute(operation, TimeSpan.FromSeconds(30), 10, ex => true);
+            return Execute(operation, TimeSpan.FromSeconds(30), 10, shouldRetryOn);
         }
         public static async Task Execute(Func<Task> operation, TimeSpan maxDelay, int maxRetryCount, Func<Exception, bool> shouldRetryOn)
         {
             await Execute<object>(async () => { await operation(); return null; }, maxDelay, maxRetryCount, shouldRetryOn);
         }
 
-        public static Task<TResult> Execute<TResult>(Func<Task<TResult>> operation)
+        public static Task<TResult> Execute<TResult>(Func<Task<TResult>> operation, Func<Exception, bool> shouldRetryOn)
         {
-            return Execute(operation, TimeSpan.FromSeconds(30), 10, ex => true);
+            return Execute(operation, TimeSpan.FromSeconds(30), 10, shouldRetryOn);
         }
         public static async Task<TResult> Execute<TResult>(Func<Task<TResult>> operation, TimeSpan maxDelay, int maxRetryCount, Func<Exception, bool> shouldRetryOn)
         {
